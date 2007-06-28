@@ -1,0 +1,407 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-2"/>
+    <meta name="keywords" content="akop, karapetyan, fmsx, msx, psp, playstation, portable, emulator, emulation, fmsx-psp, fmsxpsp"/>
+    <meta name="author" content="Akop Karapetyan"/>
+    <meta name="description" content="MSX emulator for PlayStation Portable"/>
+    <title>fMSX-PSP Readme</title>
+    <style type="text/css">
+      body
+      {
+        margin: 0;
+        font-family: sans-serif;
+        font-size: 10pt;
+        background-color: #fbfaf4;
+      }
+
+      #content
+      {
+        padding: 2em 2em 2em 2em;
+        margin-left: 5em;
+        border-left: dotted 1px #000000;
+      }
+            
+      h1
+      {
+        font-size: 14pt;
+      }
+      
+      h2
+      {
+        font-size: 12pt;
+      }
+      
+      span.button
+      {
+        font-size: 1.25em;
+        font-family: monospace;
+      }
+      
+      span.file
+      {
+        font-family: monospace;
+      }
+
+      div.indent
+      {
+        font-family: monospace;
+        margin-left: 1.5em;
+      }
+      
+      div.section
+      {
+        margin: 1.5em;
+      }
+
+      #title
+      {
+        font-weight: bold;
+        font-family: serif;
+        font-size: 24pt;
+      }
+      
+      #byline
+      {
+        font-family: serif;
+        font-size: 13pt;
+        font-style: oblique;
+      }
+      
+      .no-bullets
+      {
+        list-style: none;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <div id="content">
+      <div id="title"><sup style="font-style: oblique;">f</sup>MSX-PSP</div>
+      <div id="byline">MSX emulator for PlayStation Portable</div>
+
+      <p><a href="http://psp.akop.org/fmsx">http://psp.akop.org/fmsx</a></p>
+      
+      <p>
+        &copy; 2007 Akop Karapetyan<br/>
+        &copy; 1994-2007 Marat Fayzullin<br/>
+      </p>
+
+      <p>fMSX-PSP is a port of the <a href="http://fms.komkon.org/fMSX/">fMSX 
+        emulator</a> to the Sony PlayStation Portable platform. It's written in
+        C and uses GU (Graphical Utility toolkit) for rendering.</p>
+
+      <h1 id="toc">Table of Contents</h1>
+      <div class="section">
+        <ol>
+          <li><a href="#news">New Features</a></li>
+          <li><a href="#install">Installation</a></li>
+          <li><a href="#controls">Controls</a></li>
+          <li><a href="#multi">Multi-Volume Disk Images</a></li>
+          <li><a href="#vk">Virtual Keyboard</a></li>
+          <li><a href="#optim">Optimization</a></li>
+          <li><a href="#trouble">Troubleshooting</a></li>
+          <li><a href="#compile">Compiling</a></li>
+          <li><a href="#hist">Version history</a></li>
+          <li><a href="#cred">Credits</a></li>
+          <li><a href="#thanks">Thanks</a></li>
+        </ol>
+      </div>
+
+      <h1 id="news">New Features</h1>
+      <div class="section">
+        <h2>Version 3.3.1 (June 17, 2007)</h2>
+        <ul>
+          <li>Virtual keyboard improvements. The virtual keyboard now requires 
+            an external file - 'msx.lyt' in the emulator directory&mdash;the file 
+            contains keyboard layout information</li>
+          <li>fMSX updated to version 3.3. Note that pre-3.3 version save states will
+            no longer load</li>
+          <li>Lots of minor bug fixes</li>
+        </ul>
+      </div>
+
+      <h1 id="install">Installation</h1>
+      <div class="section">
+        <p>Unzip fmsxpsp.zip into /PSP/GAME/ folder on the memory stick. This 
+          should create the following directory tree:</p>
+        
+          <div class="indent">PSP/
+            <div class="indent">GAME/
+              <div class="indent">FMSXPSP/
+                <div class="indent">CONF/ (<i>key configuration</i>)</div>
+                <div class="indent">ROMS/ (<i>game roms and disk images</i>)</div>
+                <div class="indent">SCREENS/ (<i>screenshots</i>)</div>
+                <div class="indent">STATES/ (<i>save states</i>)</div>
+                <div class="indent">MSX.LYT (<i>virtual keyboard layout</i>)</div>
+                <div class="indent">SYSTEM.ZIP (<i>System ROM's</i>)</div>
+                <div class="indent">[any other files]</div>
+              </div>
+              <div class="indent">FMSXPSP%/
+                <div class="indent">EBOOT.PBP</div>
+              </div>
+            </div>
+          </div>
+        
+        <p>Please note that system ROM's must reside in the same folder as  
+          <span class="file">EBOOT.PBP</span> file. Game ROM's and disk images 
+          (DSK files) may reside anywhere (the ROMS subdirectory is recommended, 
+          but not necessary).</p>
+
+        <p>fMSX-PSP supports cartridge and disk loading from ZIP files. System 
+          ROM's may reside in a <span class="file">SYSTEM.ZIP</span> file in the 
+          same folder as <span class="file">EBOOT.PBP</span>. 
+          <span class="file">PAINTER.ROM</span>, or 
+          <span class="file">MSXDOS2.ROM</span> may also be zipped, but must reside 
+          in separate ZIP files (<span class="file">FMPAC.ZIP</span>, 
+          <span class="file">MSXDOS2.ZIP</span>, 
+          etc..). fMSX-PSP will attempt to load the three automatically if
+          free cartridge slots are available. All other game ROM files must 
+          reside in separate ZIP files.</p>
+      </div>
+
+      <h1 id="controls">Controls</h1>
+      <div class="section">
+        <p>fMSX-PSP currently "ships" with the following default key mappings:</p>
+        <p>During emulation:</p>
+        <ul>
+          <li>Analog stick - Joystick up/down/left/right</li>
+          <li>Directional pad - Keyboard up/down/left/right</li>
+          <li><span class="button">&#9633;</span> (square) - Joystick button A</li>
+          <li><span class="button">&#10005;</span> (cross) - Joystick button B</li>
+          <li><span class="button">&#9675;</span> (circle) - Spacebar</li>
+          <li><span class="button">R</span> - Displays the virtual 
+            keyboard, for as long as the button is held</li>
+          <li><span class="button">L</span> + 
+            <span class="button">R</span> - Return to fMSX-PSP menu</li>
+          <li><span class="button">SELECT</span> + 
+            <span class="button">L</span> - Selects previous disk volume 
+            (for multi-volume disk sets)</li>
+          <li><span class="button">SELECT</span> + 
+            <span class="button">R</span> - Selects next disk volume 
+            (for multi-volume disk sets)</li>
+          <li><span class="button">START</span> - F1</li>
+        </ul>
+
+        <p>Keyboard mappings can be modified for each game. By default, button 
+          configuration changes are not retained after a mapping is modified. 
+          To save changes, press <span class="button">&#927;</span> (circle) 
+          after 
+          desired mapping is configured. To set the mapping as the default 
+          mapping, press <span class="button">&#9675;</span> (square) - to load 
+          the default mapping press <span class="button">&#9651;</span>
+          (triangle).</p>
+      </div>
+
+      <h1 id="multi">Multi-Volume Disk Images</h1>
+      <div class="section">
+        <p>fMSX-PSP can load multi-volume games (like Snatcher) from a single 
+          ZIP file. To load such a game, store all files in the same ZIP. It is 
+          important that the archived files are numbered 1-0, with '0' 
+          representing the 10th volume (archiving sequence is not important) - 
+          fMSX-PSP will attempt to load the first disk in the sequence. 
+          Here's an example:</p>
+
+          <div class="indent">snatcherj.zip
+            <div class="indent">thsnatj1.dsk</div>
+            <div class="indent">thsnatj2.dsk</div>
+            <div class="indent">thsnatj3.dsk</div>
+          </div>
+        
+        <p>To switch disks mid-game, map any of the buttons to the
+          'Special: Previous volume' or 'Special: Next volume' actions in the 
+          control menu. When a 'volume switch' button is pressed, and the next 
+          disk image in the sequence is found, an icon will appear with the 
+          number of the volume loaded. </p>
+        <p>Note that multi-volume files do not have to be ZIP-compressed for the 
+          'volume switch' feature to work - volume switching will also work for 
+          uncompressed DSK files, as long as they're named as described above.</p>
+      </div>
+
+      <h1 id="vk">Virtual Keyboard</h1>
+      <div class="section">
+        <p>When the virtual keyboard is on:</p>
+
+        <ul>
+          <li>Directional pad - select virtual button</li>
+          <li><span class="button">&#9633;</span> (square) - 
+            press a virtual button</li>
+          <li><span class="button">&#9675;</span> (circle) - 'stick' a sticky 
+            virtual button</li>
+          <li><span class="button">&#9651;</span> (triangle) - unstick all stuck 
+            virtual buttons</li>
+        </ul>
+        
+        <p>Certain virtual buttons (specifically, SHIFT, CTRL and GRAPH) are 
+          "sticky" - the virtual button remains held down when 
+          <span class="button">&#9675;</span> (circle) is tapped. Tapping 
+          <span class="button">&#9675;</span> (circle) again releases the virtual 
+          button. This allows SHIFT, CTRL and GRAPH all to be held down at 
+          the same time, while the user presses another virtual button. 
+          To unstick all sticky buttons, press 
+          <span class="button">&#9651;</span> (triangle).</p>
+      </div>
+
+      <h1 id="optim">Optimization</h1>
+      <div class="section">
+        <p>For all MSX1 games and most MSX2 games, 300 MHz clockspeed achieves 
+          near-flawless rendering. Some larger games (like Metal Gear 2) are 
+          slower when VSync is enabled - those work better without VSync, or 
+          at 333 MHz. Note that anything above 222 MHz will deplete your PSP 
+          battery faster.</p>
+      </div>
+
+      <h1 id="trouble">Troubleshooting</h1>
+      <div class="section">
+        <h2>State loading errors</h2>
+        fMSX-PSP may refuse to load a save state due to a number of 
+        different reasons. Some of the reasons follow:
+
+        <ol>
+          <li>fMSX save state format has changed</li>
+          <li>Currently set RAM/VRAM sizes do not match with RAM/VRAM 
+            settings set when the state was saved. This can be rectified by 
+            resetting RAM/VRAM sizes and loading again</li>
+          <li>System model (MSX1/2/2+) currently set does not match the 
+            system model set when the state was saved. Reset the setting 
+            and try again</li>
+          <li>System ROM's currently in use do not match to those used when
+           the state was saved. Replace the system ROM's and try again</li>
+          <li>Any combination of the above</li>
+        </ol>
+      </div>
+
+      <h1 id="compile">Compiling</h1>
+      <div class="section">
+        <p>Source code for fMSX-PSP is now only available via a Subversion 
+        (SVN) repository. To check out a particular version, run</p>
+
+        <p><code>svn co http://svn.akop.org/fmsx/tags/<i>date</i></code></p>
+
+        <p>where <i>date</i> is the date of a particular version's release, in 
+        YYYY.MM.DD format (<i>2007.04.20</i>, for example). Note that 
+        for this to work, you need to have Subversion installed.</p>
+        
+        <div>To compile fMSX-PSP, you will need 
+        <a href="svn://svn.pspdev.org/psp/trunk/zlib">zlib</a> (svn://) and 
+        <a href="svn://svn.pspdev.org/psp/trunk/libpng">libpng</a> (svn://).</div>
+        <div>To enable the alternate sound engines, <code>#define MSXAUDIO</code>
+          and <code>MSXMUSIC</code>.</div>
+        <div>To enable zipped ROM support, <code>#define MINIZIP</code>.</div>
+      </div>
+
+      <h1 id="hist">Version History</h1>
+      <div class="section">
+        <h2>Version 3.2.1 (June 4, 2007)</h2>
+        <ul>
+          <li>Added menu navigation options - select from US PSP navigation 
+            (<span class="button">&#10005;</span> [cross] confirms, 
+             <span class="button">&#9675;</span> [circle] cancels) or 
+             Japanese PSP navigation (<span class="button">&#9675;</span>
+             [cross] confirms, 
+             <span class="button">&#10005;</span> [circle] cancels&mdash;also 
+             used by most homebrew emulators)</li>
+          <li>Added RAM/VRAM adjustment options</li>
+          <li>Added HBlank/VBlank period selection (PAL/NTSC)</li>
+          <li>Added MSX model selection (MSX1, MSX2, MSX2+)</li>
+          <li>Improved accuracy of frames-per-second counter</li>
+          <li>User interface improvements</li>
+          <li>fMSX updated to version 3.2</li>
+          <li>Rendering speed increase, switched to 15bit color</li>
+          <li>Various bug fixes</li>
+        </ul>
+
+        <h2>Version 3.1.3 (May 5, 2007)</h2>
+        <ul>
+          <li>Support for multi-volume disk images - multiple disk images
+            per ZIP file and in-game volume switching (see section below)</li>
+          <li>Improved virtual keyboard navigation, speed increase</li>
+          <li>System ROM's can now be stored in a single ZIP file (see 
+            Installation section)</li>
+          <li>Integrated zipped ROM and DSK file support (fast loading from ZIP
+            files)</li>
+          <li>Added PSG/SCC/MSXMUSIC sound emulation engine by Mitsutaka 
+            Okazaki and MSXAUDIO engine by Tatsuyuki Satoh. The old engine 
+            is still available, as it is noticeably faster. MSXMUSIC and 
+            MSXAUDIO are disabled by default (recompile if you really need 
+            them), as they adversely affect emulation speed</li>
+          <li>~18% gain in rendering speed</li>
+          <li>FPS counter</li>
+          <li>PAL frequency (50Hz) timing</li>
+          <li>Various small improvements and bugfixes</li>
+        </ul>
+
+        <h2>Version 3.1.2 (Apr. 24, 2007)</h2>
+        <ul>
+          <li>Added support for cartridge type selection in the System menu. 
+            This adds support for games like Zanac Ex, which are not detected 
+            correctly</li>
+          <li>Preliminary ZIP file support. Emulator will load ROM or DSK 
+            files from a ZIP file, provided there's only a single compressed 
+            file per ZIP. System ROM's must still be uncompressed (or GZIP 
+            compressed)</li>
+          <li>GZip file support - emulator can load cartridges and disk 
+            images from gzip compressed files. Save states are also much 
+            smaller in size</li>
+          <li>GUI changes, wording changes</li>
+        </ul>
+      
+        <h2>Version 3.1.1 (Apr. 20, 2007; initial release)</h2>
+        <ul>
+          <li>Three available rendering modes: normal size, 4:3 scaled, 16:9 
+            scaled</li>
+          <li>State loading/saving, with a thumbnail icon for each state (up 
+            to 10 states per game)</li>
+          <li>Controls configurable for a particular game</li>
+          <li>Frame limiter, frame skipping, vertical sync, PSP clock frequency 
+            adjustment</li>
+          <li>Support for two cart slots and two disk drives</li>
+          <li>On-screen virtual keyboard</li>
+        </ul>
+      </div>
+
+      <h1 id="cred">Credits</h1>
+      <div class="section">
+        <ul class="no-bullets">
+          <li>Marat Fayzullin - fMSX</li>
+          <li>Simon Tatham - fixed.fd font on which the emulator's font is 
+            based</li>
+          <li>Gilles Vollant - Minizip library</li>
+          <li>Vincent van Dam - fMSX-SDL (code dealing with sound emulation)</li>
+          <li>Mitsutaka Okazaki - PSG/SCC/MSXMUSIC sound emulation engine</li>
+          <li>Tatsuyuki Satoh - MSXAUDIO sound emulation engine</li>
+          <li>Ruka - PNG saving/loading code</li>
+        </ul>
+      </div>
+
+      <h1 id="thanks">Thanks</h1>
+      <div class="section">
+        <p>fMSX-PSP would not be possible without prior work of many other
+          PSP hackers. I have benefitted from the source code of the following 
+          PSP programs:</p>
+
+        <ul class="no-bullets">
+          <li>fMSX-SDL by Vincent van Dam</li>
+          <li>PSPMSX by zx81</li>
+          <li>NesterJ by Ruka</li>
+          <li>Snes9XTYL by YoyoFR, Thunder, Laxer</li>
+          <li>[CPS1|CPS2|MVS]PSP by NJ</li>
+          <li>PSPSDK examples</li>
+        </ul>
+
+        <p>Some personal thanks are due to the authors of SNES9XTYL, DGEN for 
+          PSP and [CPSx|MVS]PSP emulators - the hard work evident in the polished 
+          interfaces of the emulators is inspiring, if nothing else. fMSX-PSP was 
+          an attempt to bring a similar interface to MSX emulation (whether it's 
+          achieved that or not is anyone's guess :)</p>
+
+        <p>Special thanks are also due to <i>jburton</i> of dcemu.co.uk forums
+          for all his helpful feedback.</p>
+      </div>
+      <hr/>
+
+      <i>Akop Karapetyan, 2007</i>
+    </div>
+  </body>
+</html>
