@@ -23,6 +23,7 @@
 #include "ctrl.h"
 
 #include "Coleco.h"
+#include "Sound.h"
 
 PSP_MODULE_INFO("ColEm PSP 2.2.1", 0, 1, 1);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
@@ -49,7 +50,7 @@ int main(int argc,char *argv[])
 
   /* Initialize PSP */
   pspInit(argv[0]);
-  pspAudioInit();
+  pspAudioInit(SND_BUFSIZE);
   pspCtrlInit();
   pspVideoInit();
 
@@ -73,7 +74,7 @@ int main(int argc,char *argv[])
   }
 
   /* Release PSP resources */
-  pspAudioEnd();
+  pspAudioShutdown();
   pspVideoShutdown();
   pspShutdown();
 

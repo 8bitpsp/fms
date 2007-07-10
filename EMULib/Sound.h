@@ -181,8 +181,7 @@ unsigned int InitSound(unsigned int Rate,unsigned int Delay);
 #include "audio.h"
 
 #define SND_CHANNELS    16     /* Number of channels         */
-#define SND_BUFSIZE     PSP_NUM_AUDIO_SAMPLES
-                               /* Size of a wave buffer      */
+#define SND_BUFSIZE     512    /* Size of a wave buffer      */
 
 /** InitSound() **********************************************/
 /** Initialize PSP sound driver with given synthesis        **/

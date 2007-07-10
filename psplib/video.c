@@ -9,6 +9,9 @@
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
 /*************************************************************/
+
+/* TODO: move ScratchBuffer into VRAM */
+
 #include <pspgu.h>
 #include <pspkernel.h>
 #include <pspdisplay.h>
@@ -51,6 +54,7 @@ static int   PixelFormat;
 static int   TexFormat;
 static int   TexColor;
 static void *VramOffset;
+static void *VramChunkOffset;
 static unsigned short __attribute__((aligned(16))) ScratchBuffer[BUF_WIDTH * SCR_HEIGHT];
 static unsigned int VramBufferOffset;
 static unsigned int __attribute__((aligned(16))) List[262144]; /* TODO: ? */
@@ -66,6 +70,7 @@ void pspVideoInit()
   TexFilter = GU_LINEAR;
   VramBufferOffset = 0;
   VramOffset = 0;
+  VramChunkOffset = (void*)0x44088000;
 
   int size;
 
@@ -156,10 +161,13 @@ void pspVideoPutImage(const PspImage *image, int dx, int dy, int dw, int dh)
 
   void *pixels = _pspVideoGetBuffer(image);
 
-  if (dw == image->Width && dh == image->Height)
+  if (dw == image->Viewport.Width && dh == image->Viewport.Height)
   {
-    sceGuCopyImage(PixelFormat, 0, 0, BUF_WIDTH, SCR_HEIGHT, BUF_WIDTH,
-      pixels, dx, dy, BUF_WIDTH, (void *)(VRAM_START + (u32)VramOffset));
+    sceGuCopyImage(PixelFormat,
+      image->Viewport.X, image->Viewport.Y,
+      image->Viewport.Width, image->Viewport.Height,
+      BUF_WIDTH, pixels, dx, dy,
+      BUF_WIDTH, (void *)(VRAM_START + (u32)VramOffset));
   }
   else
   {
@@ -171,14 +179,16 @@ void pspVideoPutImage(const PspImage *image, int dx, int dy, int dw, int dh)
 
     struct TexVertex* vertices;
     int start, end, sc_end, slsz_scaled;
-    slsz_scaled = ceil((float)dw * (float)SLICE_SIZE) / (float)image->Width;
+    slsz_scaled = ceil((float)dw * (float)SLICE_SIZE) / (float)image->Viewport.Width;
 
-    for (start = 0, end = BUF_WIDTH, sc_end = dx + dw; start < end; start += SLICE_SIZE, dx += slsz_scaled)
+    for (start = image->Viewport.X, end = image->Viewport.X + image->Viewport.Width, sc_end = dx + dw; start < end; start += SLICE_SIZE, dx += slsz_scaled)
     {
       vertices = (struct TexVertex*)sceGuGetMemory(2 * sizeof(struct TexVertex));
 
-      vertices[0].u = start; vertices[0].v = 0;
-      vertices[1].u = start + SLICE_SIZE; vertices[1].v = image->Height;
+      vertices[0].u = start;
+      vertices[0].v = image->Viewport.Y;
+      vertices[1].u = start + SLICE_SIZE;
+      vertices[1].v = image->Viewport.Height + image->Viewport.Y;
 
       vertices[0].x = dx; vertices[0].y = dy;
       vertices[1].x = dx + slsz_scaled; vertices[1].y = dy + dh;
@@ -205,29 +215,34 @@ void pspVideoPutImageDirect(const PspImage *image, int dx, int dy, int dw, int d
 
   void *pixels = image->Pixels;
 
-  if (dw == image->Width && dh == image->Height)
+  if (dw == image->Viewport.Width && dh == image->Viewport.Height)
   {
-    sceGuCopyImage(PixelFormat, 0, 0, image->Width, image->Height, image->Width,
-      pixels, dx, dy, BUF_WIDTH, (void *)(VRAM_START + (u32)VramOffset));
+    sceGuCopyImage(PixelFormat,
+      image->Viewport.X, image->Viewport.Y,
+      image->Viewport.Width, image->Viewport.Height,
+      image->Width, pixels, dx, dy,
+      BUF_WIDTH, (void *)(VRAM_START + (u32)VramOffset));
   }
   else
   {
     sceGuEnable(GU_TEXTURE_2D);
     sceGuTexMode(TexFormat, 0, 0, GU_FALSE);
-    sceGuTexImage(0, image->Width, image->Height, image->Width, pixels);
+    sceGuTexImage(0, image->Width, image->Width, image->Width, pixels);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGBA);
     sceGuTexFilter(TexFilter, TexFilter);
 
     struct TexVertex* vertices;
     int start, end, sc_end, slsz_scaled;
-    slsz_scaled = ceil((float)dw * (float)SLICE_SIZE) / (float)image->Width;
+    slsz_scaled = ceil((float)dw * (float)SLICE_SIZE) / (float)image->Viewport.Width;
 
-    for (start = 0, end = image->Width, sc_end = dx + dw; start < end; start += SLICE_SIZE, dx += slsz_scaled)
+    for (start = image->Viewport.X, end = image->Viewport.X + image->Viewport.Width, sc_end = dx + dw; start < end; start += SLICE_SIZE, dx += slsz_scaled)
     {
       vertices = (struct TexVertex*)sceGuGetMemory(2 * sizeof(struct TexVertex));
 
-      vertices[0].u = start; vertices[0].v = 0;
-      vertices[1].u = start + SLICE_SIZE; vertices[1].v = image->Height;
+      vertices[0].u = start;
+      vertices[0].v = image->Viewport.Y;
+      vertices[1].u = start + SLICE_SIZE;
+      vertices[1].v = image->Viewport.Height + image->Viewport.Y;
 
       vertices[0].x = dx; vertices[0].y = dy;
       vertices[1].x = dx + slsz_scaled; vertices[1].y = dy + dh;
@@ -381,7 +396,7 @@ int pspVideoPrintCenter(const PspFont *font, int sx, int sy, int dx, const char 
   int width, c = color, max;
 
   width = pspFontGetTextWidth(font, string);
-  sx = (dx - sx) / 2 - width / 2;
+  sx += (dx - sx) / 2 - width / 2;
 
   for (ch = (unsigned char*)string, width = 0, max = 0; *ch; ch++)
   {
@@ -473,4 +488,12 @@ PspImage* pspVideoGetVramBufferCopy()
       image->Pixels[i * image->Width + j] = *(vram_addr + (i * BUF_WIDTH + j));
 
   return image;
+}
+
+void* pspVideoAllocateVramChunk(unsigned int bytes)
+{
+  void *ptr = VramChunkOffset;
+  VramChunkOffset += bytes;
+
+  return ptr;
 }

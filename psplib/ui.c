@@ -36,6 +36,8 @@ static const char
   *BrowserOpenTemplate      = "\026\001\020 Open",
   *BrowserParentDirTemplate = "\026\243\020 Parent directory",
 
+  *SplashStatusBarTemplate  = "\026\255\020/\026\256\020 Switch tabs",
+
   *OptionModeTemplate = 
     "\026\245\020/\026\246\020 Select\t\026\247\020/\026\002\020 Cancel\t\026\250\020/\026\001\020 Confirm";
 
@@ -177,13 +179,14 @@ int pspUiConfirm(const char *message)
 
 void pspUiFlashMessage(const char *message)
 {
-  int sx, sy, dx, dy, fh, mw, w, h;
+  int sx, sy, dx, dy, fh, mw, mh, w, h;
 
   mw = pspFontGetTextWidth(UiMetric.Font, message);
   fh = pspFontGetLineHeight(UiMetric.Font);
+  mh = pspFontGetTextHeight(UiMetric.Font, message);
 
   w = mw + 50;
-  h = fh * 3;
+  h = mh + fh * 2;
   sx = SCR_WIDTH / 2 - w / 2;
   sy = SCR_HEIGHT / 2 - h / 2;
   dx = sx + w;
@@ -194,7 +197,8 @@ void pspUiFlashMessage(const char *message)
   pspVideoFillRect(0, 0, SCR_WIDTH, SCR_HEIGHT, UiMetric.DialogFogColor);
   pspVideoFillRect(sx, sy, dx, dy, UiMetric.DialogBgColor);
   pspVideoDrawRect(sx + 1, sy + 1, dx - 1, dy - 1, UiMetric.DialogBorderColor);
-  pspVideoPrint(UiMetric.Font, SCR_WIDTH / 2 - mw / 2, sy + fh, message, UiMetric.TextColor);
+  pspVideoPrintCenter(UiMetric.Font,
+    sx, sy + fh, dx, message, UiMetric.TextColor);
 
   pspVideoEnd();
 
@@ -732,7 +736,7 @@ void pspUiOpenGallery(const PspUiGallery *gallery, const char *title)
           glow += glow_dir;
           if (glow >= 5 || glow <= 2) glow_dir *= -1;
           pspVideoGlowRect(j - 4, i - 4, 
-            j + icon_w + 4, i + icon_h + 4, UiMetric.SelectedBgColor, glow);
+            j + icon_w + 4, i + icon_h + 4, UiMetric.SelectedColor, glow);
         }
         else 
         {
@@ -962,7 +966,7 @@ void pspUiOpenMenu(const PspUiMenu *uimenu, const char *title)
             PspMenuOption *option;
 
             /* Find the longest option caption */
-            for (option = sel->Options; option->Next; option = option->Next)
+            for (option = sel->Options; option; option = option->Next)
               if (option->Text && (width = pspFontGetTextWidth(UiMetric.Font, option->Text)) > max_option_w) 
                 max_option_w = width;
 
@@ -1189,12 +1193,11 @@ void pspUiSplashScreen(PspUiSplash *splash)
       pspVideoClearScreen();
 
     /* Draw instructions */
-    if (splash->OnGetStatusBarText)
-    {
-      const char *dirs = splash->OnGetStatusBarText(splash);
-      pspVideoPrintCenter(UiMetric.Font, UiMetric.Left, 
-        SCR_HEIGHT - fh, UiMetric.Right, dirs, UiMetric.StatusBarColor);
-    }
+    const char *dirs = (splash->OnGetStatusBarText)
+      ? splash->OnGetStatusBarText(splash)
+      : SplashStatusBarTemplate;
+    pspVideoPrintCenter(UiMetric.Font, UiMetric.Left,
+      SCR_HEIGHT - fh, UiMetric.Right, dirs, UiMetric.StatusBarColor);
 
     /* Perform any custom drawing */
     if (splash->OnRender)

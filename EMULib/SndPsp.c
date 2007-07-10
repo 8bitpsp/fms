@@ -65,7 +65,7 @@ static void PspSetChannels(int Volume,int Switch);
 static const signed char *PspGetWave(int Channel);
 static void PspSetWave(int Channel,const signed char *Data,int Length,int Rate);
 static void PspSound(int Channel,int Freq,int Volume);
-void AudioCallback(void* buf, unsigned int length, void *userdata);
+void AudioCallback(void* buf, unsigned int *length, void *userdata);
 
 #if defined(FMSX) && defined(ALTSOUND)
 #define MSX_CLK 3579545
@@ -301,7 +301,7 @@ unsigned int RenderAudio(unsigned int Samples)
 /** AudioCallback() ******************************************/
 /** Called by the system to render sound                    **/
 /*************************************************************/
-void AudioCallback(void* buf, unsigned int length, void *userdata)
+void AudioCallback(void* buf, unsigned int *length, void *userdata)
 {
   PspSample *OutBuf = (PspSample*)buf;
 
@@ -309,7 +309,7 @@ void AudioCallback(void* buf, unsigned int length, void *userdata)
   register int   J,R;
   register INT16 P,O,A,S;
 
-  for(J=0;J<length;J++)
+  for(J=0;J<*length;J++)
   {
     P=PSG_calc(psg);
     S=SCC_calc(scc);
@@ -317,17 +317,17 @@ void AudioCallback(void* buf, unsigned int length, void *userdata)
     A=Use8950? Y8950UpdateOne(fm_opl): 0;
     R=P*FactorPSG+O*Factor2413+A*Factor8950+S*FactorSCC;
 
-    OutBuf[J].l=OutBuf[J].r=(R>32767)?32767:(R<-32768)?-32768:R;
+    OutBuf[J].Left = OutBuf[J].Right = (R>32767)?32767:(R<-32768)?-32768:R;
   }
 #else
-  unsigned int Samples = length;
+  unsigned int Samples = *length;
   register int N,J,K,I,L,L1,L2,V,A1,A2;
 
   /* Reset some variables to keep compiler happy */
   L=N=A2=0;
 
   /* Truncate to available space */
-  J       = length;
+  J       = *length;
   Samples = Samples>SND_BUFSIZE? SND_BUFSIZE:Samples;
   Samples = Samples>J? J:Samples;
   if(!Samples) return;
@@ -423,7 +423,7 @@ void AudioCallback(void* buf, unsigned int length, void *userdata)
   for(J=0;J<Samples;J++)
   {
     I=(Wave[J]*MasterVolume)/255;
-    OutBuf[J].l=OutBuf[J].r=I>32767? 32767:I<-32768? -32768:I;
+    OutBuf[J].Left = OutBuf[J].Right = I>32767? 32767:I<-32768? -32768:I;
   }
 #endif
 }
