@@ -12,7 +12,7 @@ BUILD_Z80=$(Z80)/Z80.o $(Z80)/Debug.o
 BUILD_PSPLIB=$(PSPLIB)/psp.o $(PSPLIB)/font.o $(PSPLIB)/image.o \
              $(PSPLIB)/video.o $(PSPLIB)/audio.o $(PSPLIB)/fileio.o \
              $(PSPLIB)/menu.o $(PSPLIB)/ui.o $(PSPLIB)/ctrl.o \
-             $(PSPLIB)/kybd.o $(PSPLIB)/perf.o
+             $(PSPLIB)/kybd.o $(PSPLIB)/perf.o $(PSPLIB)/init.o
 BUILD_EMULIB=$(EMULIB)/Sound.o $(EMULIB)/SndPsp.o \
              $(EMULIB)/INIFile.o $(EMULIB)/LibPsp.o
 
@@ -45,6 +45,7 @@ $(PSPLIB)/kybd.o:   $(PSPLIB)/kybd.c $(PSPLIB)/kybd.h \
                     $(PSPLIB)/ctrl.c $(PSPLIB)/video.c \
                     $(PSPLIB)/image.c $(PSPLIB)/font.c
 $(PSPLIB)/menu.o:   $(PSPLIB)/menu.c $(PSPLIB)/menu.h
+$(PSPLIB)/init.o:   $(PSPLIB)/init.c $(PSPLIB)/init.h
 $(PSPLIB)/psp.o:    $(PSPLIB)/psp.c $(PSPLIB)/psp.h \
                     $(PSPLIB)/fileio.c
 $(PSPLIB)/ui.o:     $(PSPLIB)/ui.c $(PSPLIB)/ui.h \

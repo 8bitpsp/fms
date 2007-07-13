@@ -214,14 +214,20 @@ static int AudioChannelThread(int args, void *argp)
       for (i = 0; i < SampleCount; i++) *(ptr++) = 0;
     }
 
-	  OutputBlocking(channel, AudioStatus[channel].LeftVolume, 
-      AudioStatus[channel].RightVolume, bufptr, length);
+    OutputBlocking(channel, AudioStatus[channel].LeftVolume, 
+    AudioStatus[channel].RightVolume, bufptr, length);
 
     bufidx = (bufidx ? 0 : 1);
   }
 
   sceKernelExitThread(0);
   return 0;
+}
+
+int pspAudioOutputBlocking(unsigned int channel, void *buf)
+{
+  return OutputBlocking(channel, AudioStatus[channel].LeftVolume,
+    AudioStatus[channel].RightVolume, buf, SampleCount);
 }
 
 static int OutputBlocking(unsigned int channel, 
@@ -232,7 +238,7 @@ static int OutputBlocking(unsigned int channel,
   if (vol1 > PSP_VOLUME_MAX) vol1 = PSP_VOLUME_MAX;
   if (vol2 > PSP_VOLUME_MAX) vol2 = PSP_VOLUME_MAX;
 
-  sceAudioSetChannelDataLen(channel, length);
+  // sceAudioSetChannelDataLen(channel, length);
   return sceAudioOutputPannedBlocking(AudioStatus[channel].Handle,
     vol1, vol2, buf);
 }
