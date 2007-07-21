@@ -603,7 +603,7 @@ void InitMenu()
   Background = pspImageLoadPng("background.png");
 
   /* Init NoSaveState icon image */
-  NoSaveIcon=pspImageCreate(136, 114);
+  NoSaveIcon=pspImageCreate(136, 114, PSP_IMAGE_16BPP);
   pspImageClear(NoSaveIcon, RGB(66,66,66));
 
   /* Initialize state menu */
@@ -621,7 +621,7 @@ void InitMenu()
   InitGameConfig(&GameConfig);
 
   /* Initialize screen buffer */
-  Screen = pspImageCreate(WIDTH, HEIGHT);
+  Screen = pspImageCreate(WIDTH, HEIGHT, PSP_IMAGE_16BPP);
   pspImageClear(Screen, 0x8000);
 
   /* Initialize options */
@@ -713,8 +713,8 @@ void OnSplashRender(const void *splash, const void *null)
     "fMSX-PSP version 3.3.1 ("__DATE__")", 
     "\026http://psp.akop.org/fmsx",
     " ",
-    "2007 Akop Karapetyan",
-    "1994-2007 Marat Fayzullin",
+    "2007 Akop Karapetyan (port)",
+    "1994-2007 Marat Fayzullin (emulation)",
     NULL
   };
 
@@ -1568,7 +1568,7 @@ PspImage* LoadStateIcon(const char *path)
   }
 
   /* Load image */
-  PspImage *image = pspImageLoadPngOpen(f);
+  PspImage *image = pspImageLoadPngFd(f);
   fclose(f);
 
   return image;
@@ -1602,7 +1602,7 @@ PspImage* SaveState(const char *path, PspImage *icon)
   long pos = ftell(f);
 
   /* Write the thumbnail */
-  if (!pspImageSavePngOpen(f, thumb))
+  if (!pspImageSavePngFd(f, thumb))
   {
     pspImageDestroy(thumb);
     fclose(f);

@@ -14,19 +14,20 @@
 #include <malloc.h>
 #include <string.h>
 #include <png.h>
+#include <pspgu.h>
 
 #include "video.h"
 #include "image.h"
 
 typedef unsigned char byte;
 
-static void pspImageDrawHLine(PspImage *image, int sx, int dx, int y, unsigned short color);
-static void pspImageDrawVLine(PspImage *image, int x, int sy, int dy, unsigned short color);
-
-PspImage* pspImageCreate(int width, int height)
+/* Creates an image in memory */
+PspImage* pspImageCreate(int width, int height, int bpp)
 {
-  int size = width * height * sizeof(unsigned short);
-  unsigned short* pixels = (unsigned short*)memalign(16, size);
+  if (bpp != PSP_IMAGE_INDEXED && bpp != PSP_IMAGE_16BPP) return NULL;
+
+  int size = width * height * (bpp / 8);
+  void *pixels = memalign(16, size);
 
   if (!pixels) return NULL;
 
@@ -48,15 +49,35 @@ PspImage* pspImageCreate(int width, int height)
   image->Viewport.Y = 0;
   image->Viewport.Width = width;
   image->Viewport.Height = height;
+
+  int i;
+  for (i = 1; i < width; i *= 2);
+  image->PowerOfTwo = (i == width);
+  image->BytesPerPixel = bpp / 8;
   image->FreeBuffer = 1;
+  image->Depth = bpp;
+  memset(image->Palette, 0, sizeof(image->Palette));
+
+  switch (image->Depth)
+  {
+  case PSP_IMAGE_INDEXED:
+    image->TextureFormat = GU_PSM_T8;
+    break;
+  case PSP_IMAGE_16BPP:
+    image->TextureFormat = GU_PSM_5551;
+    break;
+  }
 
   return image;
 }
 
-PspImage* pspImageCreateVram(int width, int height)
+/* Creates an image using portion of VRAM */
+PspImage* pspImageCreateVram(int width, int height, int bpp)
 {
-  int size = width * height * sizeof(unsigned short);
-  unsigned short* pixels = pspVideoAllocateVramChunk(size);
+  if (bpp != PSP_IMAGE_INDEXED && bpp != PSP_IMAGE_16BPP) return NULL;
+
+  int i, size = width * height * (bpp / 8);
+  void *pixels = pspVideoAllocateVramChunk(size);
 
   if (!pixels) return NULL;
 
@@ -73,149 +94,118 @@ PspImage* pspImageCreateVram(int width, int height)
   image->Viewport.Y = 0;
   image->Viewport.Width = width;
   image->Viewport.Height = height;
+
+  for (i = 1; i < width; i *= 2);
+  image->PowerOfTwo = (i == width);
+  image->BytesPerPixel = bpp >> 3;
   image->FreeBuffer = 0;
+  image->Depth = bpp;
+  memset(image->Palette, 0, sizeof(image->Palette));
+
+  switch (image->Depth)
+  {
+  case PSP_IMAGE_INDEXED: image->TextureFormat = GU_PSM_T8;   break;
+  case PSP_IMAGE_16BPP:   image->TextureFormat = GU_PSM_5551; break;
+  }
 
   return image;
 }
 
+/* Destroys image */
 void pspImageDestroy(PspImage *image)
 {
   if (image->FreeBuffer) free(image->Pixels);
   free(image);
 }
 
+/* Creates a half-sized thumbnail of an image */
 PspImage* pspImageCreateThumbnail(const PspImage *image)
 {
   PspImage *thumb;
   int i, j, p;
 
-  if (!(thumb = pspImageCreate(image->Viewport.Width / 2, image->Viewport.Height / 2)))
-    return NULL;
+  if (!(thumb = pspImageCreate(image->Viewport.Width >> 1,
+    image->Viewport.Height >> 1, image->Depth)))
+      return NULL;
 
   int dy = image->Viewport.Y + image->Viewport.Height;
   int dx = image->Viewport.X + image->Viewport.Width;
 
   for (i = image->Viewport.Y, p = 0; i < dy; i += 2)
     for (j = image->Viewport.X; j < dx; j += 2)
-      thumb->Pixels[p++] = image->Pixels[(image->Width * i) + j];
+      if (image->Depth == PSP_IMAGE_INDEXED)
+        ((unsigned char*)thumb->Pixels)[p++]
+          = ((unsigned char*)image->Pixels)[(image->Width * i) + j];
+      else
+        ((unsigned short*)thumb->Pixels)[p++]
+          = ((unsigned short*)image->Pixels)[(image->Width * i) + j];
 
-  return thumb;  
+  if (image->Depth == PSP_IMAGE_INDEXED)
+    memcpy(thumb->Palette, image->Palette, sizeof(image->Palette));
+
+  return thumb;
 }
 
+/* Creates an exact copy of the image */
 PspImage* pspImageCreateCopy(const PspImage *image)
 {
   PspImage *copy;
 
   /* Create image */
-  if (!(copy = pspImageCreate(image->Width, image->Height)))
+  if (!(copy = pspImageCreate(image->Width, image->Height, image->Depth)))
     return NULL;
 
   /* Copy pixels */
-  int size = image->Width * image->Height * sizeof(unsigned short);
+  int size = image->Width * image->Height * image->BytesPerPixel;
   memcpy(copy->Pixels, image->Pixels, size);
   memcpy(&copy->Viewport, &image->Viewport, sizeof(PspViewport));
+  memcpy(copy->Palette, image->Palette, sizeof(image->Palette));
 
   return copy;
 }
 
-void pspImageClear(PspImage *image, unsigned short color)
+/* Clears an image */
+void pspImageClear(PspImage *image, unsigned int color)
 {
-  int i, size;
-  size = image->Width * image->Height;
-
-  for (i = 0; i < size; i++)
-    image->Pixels[i] = color;
+  if (image->Depth == PSP_IMAGE_INDEXED)
+  {
+    memset(image->Pixels, color & 0xff, image->Width * image->Height);
+  }
+  else if (image->Depth == PSP_IMAGE_16BPP)
+  {
+    int i;
+    unsigned short *pixel = image->Pixels;
+    for (i = image->Width * image->Height - 1; i >= 0; i--, pixel++)
+      *pixel = color & 0xffff;
+  }
 }
 
-void pspImageDrawRect(PspImage *image, int sx, int sy, int dx, int dy, unsigned short color)
-{
-  pspImageDrawHLine(image, sx, dx, sy, color);
-  pspImageDrawHLine(image, sx, dx, dy, color);
-  pspImageDrawVLine(image, sx, sy, dy, color);
-  pspImageDrawVLine(image, dx, sy, dy, color);
-}
-
-void pspImageFillRect(PspImage *image, int sx, int sy, int dx, int dy, unsigned short color)
-{
-  int minx, maxx, miny, maxy, i, j;
-  unsigned short *pixel;
-
-  /* Clamp coords */
-  sx = (sx < 0) ? 0 : (sx >= image->Width) ? image->Width - 1 : sx;
-  dx = (dx < 0) ? 0 : (dx >= image->Width) ? image->Width - 1 : dx;
-  sy = (sy < 0) ? 0 : (sy >= image->Height) ? image->Height - 1 : sy;
-  dy = (dy < 0) ? 0 : (dy >= image->Height) ? image->Height - 1 : dy;
-
-  /* Determine smaller/larger */
-  minx = (sx > dx) ? dx : sx;
-  maxx = (sx < dx) ? dx : sx;
-  miny = (sy > dy) ? dy : sy;
-  maxy = (sy < dy) ? dy : sy;
-
-  for (i = miny, pixel = image->Pixels + (miny * image->Width + minx); i <= maxy; i++, pixel += image->Width - (maxx - minx) - 1)
-    for (j = minx; j <= maxx; j++, pixel++)
-      *pixel = color;
-}
-
-static void pspImageDrawHLine(PspImage *image, int sx, int dx, int y, unsigned short color)
-{
-  int min, max, i;
-  unsigned short *pixel;
-
-  /* Clamp coords */
-  sx = (sx < 0) ? 0 : (sx >= image->Width) ? image->Width - 1 : sx;
-  dx = (dx < 0) ? 0 : (dx >= image->Width) ? image->Width - 1 : dx;
-  y = (y < 0) ? 0 : (y >= image->Height) ? image->Height - 1 : y;
-
-  /* Determine smaller/larger */
-  min = (sx > dx) ? dx : sx;
-  max = (sx < dx) ? dx : sx;
-
-  for (i = min, pixel = image->Pixels + (y * image->Width + min); i <= max; i++, pixel++)
-    *pixel = color;
-}
-
-static void pspImageDrawVLine(PspImage *image, int x, int sy, int dy, unsigned short color)
-{
-  int min, max, i;
-  unsigned short *pixel;
-
-  /* Clamp coords */
-  sy = (sy < 0) ? 0 : (sy >= image->Height) ? image->Height - 1 : sy;
-  dy = (dy < 0) ? 0 : (dy >= image->Height) ? image->Height - 1 : dy;
-  x = (x < 0) ? 0 : (x >= image->Width) ? image->Width - 1 : x;
-
-  /* Determine smaller/larger */
-  min = (sy > dy) ? dy : sy;
-  max = (sy < dy) ? dy : sy;
-
-  for (i = min, pixel = image->Pixels + (min * image->Width + x); i <= max; i++, pixel += image->Width)
-    *pixel = color;
-}
-
+/* Loads an image from a file */
 PspImage* pspImageLoadPng(const char *path)
 {
   FILE *fp = fopen(path,"rb");
   if(!fp) return NULL;
 
-  PspImage *image = pspImageLoadPngOpen(fp);
+  PspImage *image = pspImageLoadPngFd(fp);
   fclose(fp);
 
   return image;
 }
 
+/* Saves an image to a file */
 int pspImageSavePng(const char *path, const PspImage* image)
 {
   FILE *fp = fopen( path, "wb" );
 	if (!fp) return 0;
 
-  int stat = pspImageSavePngOpen(fp, image);
+  int stat = pspImageSavePngFd(fp, image);
   fclose(fp);
 
   return stat;
 }
 
-PspImage* pspImageLoadPngOpen(FILE *fp)
+/* Loads an image from an open file descriptor (16-bit PNG)*/
+PspImage* pspImageLoadPngFd(FILE *fp)
 {
   const size_t nSigSize = 8;
   byte signature[nSigSize];
@@ -254,7 +244,7 @@ PspImage* pspImageLoadPngOpen(FILE *fp)
 
   PspImage *image;
 
-  if (!(image = pspImageCreate(width, height)))
+  if (!(image = pspImageCreate(width, height, PSP_IMAGE_16BPP)))
   {
     png_destroy_read_struct(&pPngStruct, &pPngInfo, NULL);
     return 0;
@@ -305,10 +295,10 @@ PspImage* pspImageLoadPngOpen(FILE *fp)
   return image;
 }
 
-int pspImageSavePngOpen(FILE *fp, const PspImage* image)
+/* Saves an image to an open file descriptor (16-bit PNG)*/
+int pspImageSavePngFd(FILE *fp, const PspImage* image)
 {
   unsigned char *bitmap;
-  const unsigned short *pixel;
   int i, j, width, height;
 
   width = image->Viewport.Width;
@@ -317,19 +307,43 @@ int pspImageSavePngOpen(FILE *fp, const PspImage* image)
   if (!(bitmap = (u8*)malloc(sizeof(u8) * width * height * 3)))
     return 0;
 
-  pixel = image->Pixels + (image->Viewport.Y * image->Width);
-  for (i = 0; i < height; i++)
+  if (image->Depth == PSP_IMAGE_INDEXED)
   {
-    /* Skip to the start of the viewport */
-    pixel += image->Viewport.X;
-    for (j = 0; j < width; j++, pixel++)
+    const unsigned char *pixel;
+    pixel = image->Pixels + (image->Viewport.Y * image->Width);
+
+    for (i = 0; i < height; i++)
     {
-      bitmap[i * width * 3 + j * 3 + 0] = RED(*pixel);
-      bitmap[i * width * 3 + j * 3 + 1] = GREEN(*pixel);
-      bitmap[i * width * 3 + j * 3 + 2] = BLUE(*pixel);
+      /* Skip to the start of the viewport */
+      pixel += image->Viewport.X;
+      for (j = 0; j < width; j++, pixel++)
+      {
+        bitmap[i * width * 3 + j * 3 + 0] = RED(image->Palette[*pixel]);
+        bitmap[i * width * 3 + j * 3 + 1] = GREEN(image->Palette[*pixel]);
+        bitmap[i * width * 3 + j * 3 + 2] = BLUE(image->Palette[*pixel]);
+      }
+      /* Skip to the end of the line */
+      pixel += image->Width - (image->Viewport.X + width);
     }
-    /* Skip to the end of the line */
-    pixel += image->Width - (image->Viewport.X + width);
+  }
+  else
+  {
+    const unsigned short *pixel;
+    pixel = image->Pixels + (image->Viewport.Y * image->Width);
+
+    for (i = 0; i < height; i++)
+    {
+      /* Skip to the start of the viewport */
+      pixel += image->Viewport.X;
+      for (j = 0; j < width; j++, pixel++)
+      {
+        bitmap[i * width * 3 + j * 3 + 0] = RED(*pixel);
+        bitmap[i * width * 3 + j * 3 + 1] = GREEN(*pixel);
+        bitmap[i * width * 3 + j * 3 + 2] = BLUE(*pixel);
+      }
+      /* Skip to the end of the line */
+      pixel += image->Width - (image->Viewport.X + width);
+    }
   }
 
   png_struct *pPngStruct = png_create_write_struct( PNG_LIBPNG_VER_STRING,

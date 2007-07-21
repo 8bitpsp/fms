@@ -214,8 +214,8 @@ static int AudioChannelThread(int args, void *argp)
       for (i = 0; i < SampleCount; i++) *(ptr++) = 0;
     }
 
-    OutputBlocking(channel, AudioStatus[channel].LeftVolume, 
-    AudioStatus[channel].RightVolume, bufptr, length);
+	  OutputBlocking(channel, AudioStatus[channel].LeftVolume, 
+      AudioStatus[channel].RightVolume, bufptr, length);
 
     bufidx = (bufidx ? 0 : 1);
   }
@@ -230,7 +230,7 @@ int pspAudioOutputBlocking(unsigned int channel, void *buf)
     AudioStatus[channel].RightVolume, buf, SampleCount);
 }
 
-static int OutputBlocking(unsigned int channel, 
+static int OutputBlocking(unsigned int channel,
   unsigned int vol1, unsigned int vol2, void *buf, int length)
 {
   if (!AudioReady) return -1;

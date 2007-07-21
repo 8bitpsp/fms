@@ -63,6 +63,7 @@ int ClockFreq;
 int Frameskip;
 int ShowFps;
 
+static char *GameName;
 static char *RomPath;
 static char *Quickload;
 static PspImage *Background;
@@ -416,6 +417,7 @@ void InitMenu()
   /* Initialize local vars */
   Quickload = NULL;
   RomPath = NULL;
+  GameName = NULL;
   TabIndex = TAB_ABOUT;
   Background = NULL;
   ControlMode = 0;
@@ -432,7 +434,7 @@ void InitMenu()
   Background = pspImageLoadPng("background.png");
 
   /* Init NoSaveState icon image */
-  NoSaveIcon=pspImageCreate(136, 100);
+  NoSaveIcon=pspImageCreate(136, 100, PSP_IMAGE_16BPP);
   pspImageClear(NoSaveIcon, RGB(0xff,0xff,0xff));
 
   /* Initialize state menu */
@@ -456,7 +458,7 @@ void InitMenu()
   pspMenuLoad(ControlUiMenu.Menu, ControlMenuDef);
 
   /* Initialize screen buffer */
-  Screen = pspImageCreate(WIDTH, HEIGHT);
+  Screen = pspImageCreate(WIDTH, HEIGHT, PSP_IMAGE_16BPP);
   pspImageClear(Screen, 0x8000);
 
   /* Initialize options */
@@ -484,7 +486,7 @@ void InitMenu()
   UiMetric.SelectedColor = PSP_VIDEO_WHITE;
   UiMetric.SelectedBgColor = COLOR(0xdd,0x3f,0x3f,0xff);
   UiMetric.StatusBarColor = PSP_VIDEO_WHITE;
-  UiMetric.BrowserFileColor = PSP_VIDEO_DARKGRAY;
+  UiMetric.BrowserFileColor = PSP_VIDEO_GRAY;
   UiMetric.BrowserDirectoryColor = COLOR(0x4a,0x4a,0x4a,0xff);
   UiMetric.GalleryIconsPerRow = 5;
   UiMetric.GalleryIconMarginWidth = 8;
@@ -497,7 +499,7 @@ void InitMenu()
   UiMetric.DialogBorderColor = PSP_VIDEO_WHITE;
   UiMetric.DialogBgColor = PSP_VIDEO_GRAY;
   UiMetric.TitlePadding = 4;
-  UiMetric.TitleColor = PSP_VIDEO_BLACK;
+  UiMetric.TitleColor = PSP_VIDEO_RED;
   UiMetric.MenuFps = 30;
 }
 
@@ -506,6 +508,9 @@ int OnQuickloadOk(const void *browser, const void *path)
   /* Load disk or cartridge */
   if (!LoadResource(path))
     return 0;
+
+  if (GameName) free(GameName);
+  GameName = strdup(pspFileIoGetFilename(path));
 
   /* Load game configuration */
   if (!LoadGameConfig(GetConfigName(), &GameConfig))
@@ -636,8 +641,8 @@ void OnSplashRender(const void *splash, const void *null)
     "ColEm-PSP version 2.2.1 ("__DATE__")", 
     "\021http://psp.akop.org/colem",
     " ",
-    "2007 Akop Karapetyan",
-    "1994-2007 Marat Fayzullin",
+    "2007 Akop Karapetyan (port)",
+    "1994-2007 Marat Fayzullin (emulation)",
     NULL
   };
 
@@ -670,15 +675,33 @@ const char* OnSplashGetStatusBarText(const struct PspUiSplash *splash)
 int OnGenericButtonPress(const PspUiFileBrowser *browser, const char *path, 
       u32 button_mask)
 {
+  int tab_index;
+
   /* If L or R are pressed, switch tabs */
   if (button_mask & PSP_CTRL_LTRIGGER)
-  { if (--TabIndex < 0) TabIndex=TAB_MAX; }
+  {
+    TabIndex--;
+    do
+    {
+      tab_index = TabIndex;
+      if (!GameName && (TabIndex == TAB_STATE || TabIndex == TAB_CONTROL)) TabIndex--;
+      if (TabIndex < 0) TabIndex = TAB_MAX;
+    } while (tab_index != TabIndex);
+  }
   else if (button_mask & PSP_CTRL_RTRIGGER)
-  { if (++TabIndex > TAB_MAX) TabIndex=0; }
+  {
+    TabIndex++;
+    do
+    {
+      tab_index = TabIndex;
+      if (!GameName && (TabIndex == TAB_STATE || TabIndex == TAB_CONTROL)) TabIndex++;
+      if (TabIndex > TAB_MAX) TabIndex = 0;
+    } while (tab_index != TabIndex);
+  }
   else if ((button_mask & (PSP_CTRL_START | PSP_CTRL_SELECT)) 
     == (PSP_CTRL_START | PSP_CTRL_SELECT))
   {
-    if (CaptureVramBuffer(ScreenshotPath, "UI"))
+    if (CaptureVramBuffer(ScreenshotPath, "ui"))
       pspUiAlert("Saved successfully");
     else
       pspUiAlert("ERROR: Not saved");
@@ -790,8 +813,11 @@ void OnGenericRender(const void *uiobject, const void *item_obj)
   int height = pspFontGetLineHeight(UiMetric.Font);
   int x;
 
-  for (i = 0, x = 5; i <= TAB_MAX; i++, x += width + 10)
+  for (i = 0, x = 5; i <= TAB_MAX; i++)
   {
+    if (!GameName)
+      if (i == TAB_STATE || i == TAB_CONTROL) continue;
+
     /* Determine width of text */
     width = pspFontGetTextWidth(UiMetric.Font, TabLabel[i]);
 
@@ -801,6 +827,8 @@ void OnGenericRender(const void *uiobject, const void *item_obj)
 
     /* Draw name of tab */
     pspVideoPrint(UiMetric.Font, x, 0, TabLabel[i], PSP_VIDEO_WHITE);
+
+    x += width + 10;
   }
 }
 
@@ -1239,7 +1267,7 @@ PspImage* LoadStateIcon(const char *path)
   }
 
   /* Load image */
-  PspImage *image = pspImageLoadPngOpen(f);
+  PspImage *image = pspImageLoadPngFd(f);
   fclose(f);
 
   return image;
@@ -1273,7 +1301,7 @@ PspImage* SaveState(const char *path, PspImage *icon)
   long pos = ftell(f);
 
   /* Write the thumbnail */
-  if (!pspImageSavePngOpen(f, thumb))
+  if (!pspImageSavePngFd(f, thumb))
   {
     pspImageDestroy(thumb);
     fclose(f);
@@ -1391,6 +1419,7 @@ void TrashMenu()
   if (Screen) pspImageDestroy(Screen);
 
   if (RomPath) free(RomPath);
+  if (GameName) free(GameName);
 
   free(ScreenshotPath);
   free(SaveStatePath);
