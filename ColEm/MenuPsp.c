@@ -479,15 +479,15 @@ void InitMenu()
   UiMetric.Bottom = 240;
   UiMetric.OkButton = (!ControlMode) ? PSP_CTRL_CROSS : PSP_CTRL_CIRCLE;
   UiMetric.CancelButton = (!ControlMode) ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
-  UiMetric.ScrollbarColor = PSP_VIDEO_WHITE;
+  UiMetric.ScrollbarColor = PSP_COLOR_WHITE;
   UiMetric.ScrollbarBgColor = 0x77777777;
   UiMetric.ScrollbarWidth = 10;
-  UiMetric.TextColor = PSP_VIDEO_DARKGRAY;
-  UiMetric.SelectedColor = PSP_VIDEO_WHITE;
+  UiMetric.TextColor = PSP_COLOR_WHITE;
+  UiMetric.SelectedColor = PSP_COLOR_WHITE;
   UiMetric.SelectedBgColor = COLOR(0xdd,0x3f,0x3f,0xff);
-  UiMetric.StatusBarColor = PSP_VIDEO_WHITE;
-  UiMetric.BrowserFileColor = PSP_VIDEO_GRAY;
-  UiMetric.BrowserDirectoryColor = COLOR(0x4a,0x4a,0x4a,0xff);
+  UiMetric.StatusBarColor = PSP_COLOR_WHITE;
+  UiMetric.BrowserFileColor = PSP_COLOR_WHITE;
+  UiMetric.BrowserDirectoryColor = PSP_COLOR_YELLOW;
   UiMetric.GalleryIconsPerRow = 5;
   UiMetric.GalleryIconMarginWidth = 8;
   UiMetric.MenuItemMargin = 20;
@@ -496,10 +496,10 @@ void InitMenu()
   UiMetric.MenuOptionBoxBg = COLOR(0x90,0x90,0x90,0xd0);
   UiMetric.MenuDecorColor = COLOR(0xc0,0xc0,0xc0,0xff);
   UiMetric.DialogFogColor = COLOR(0,0,0,88);
-  UiMetric.DialogBorderColor = PSP_VIDEO_WHITE;
-  UiMetric.DialogBgColor = PSP_VIDEO_GRAY;
+  UiMetric.DialogBorderColor = PSP_COLOR_WHITE;
+  UiMetric.DialogBgColor = PSP_COLOR_GRAY;
   UiMetric.TitlePadding = 4;
-  UiMetric.TitleColor = PSP_VIDEO_RED;
+  UiMetric.TitleColor = PSP_COLOR_YELLOW;
   UiMetric.MenuFps = 30;
 }
 
@@ -638,8 +638,8 @@ void OnSplashRender(const void *splash, const void *null)
   int fh, i, x, y, height;
   const char *lines[] = 
   { 
-    "ColEm-PSP version 2.2.1 ("__DATE__")", 
-    "\021http://psp.akop.org/colem",
+    "ColEm-PSP version 2.2.2 ("__DATE__")", 
+    "\026http://psp.akop.org/colem",
     " ",
     "2007 Akop Karapetyan (port)",
     "1994-2007 Marat Fayzullin (emulation)",
@@ -807,7 +807,7 @@ void OnGenericRender(const void *uiobject, const void *item_obj)
     (hr_left < 0) ? 0 : hr_left, (min_left < 0) ? 0 : min_left);
 
   width = pspFontGetTextWidth(UiMetric.Font, caption);
-  pspVideoPrint(UiMetric.Font, SCR_WIDTH - width, 0, caption, PSP_VIDEO_WHITE);
+  pspVideoPrint(UiMetric.Font, SCR_WIDTH - width, 0, caption, PSP_COLOR_WHITE);
 
   /* Draw tabs */
   int height = pspFontGetLineHeight(UiMetric.Font);
@@ -826,7 +826,7 @@ void OnGenericRender(const void *uiobject, const void *item_obj)
       pspVideoFillRect(x - 5, 0, x + width + 5, height + 1, COLOR(0xb8,0xb8,0xb8,0xff));
 
     /* Draw name of tab */
-    pspVideoPrint(UiMetric.Font, x, 0, TabLabel[i], PSP_VIDEO_WHITE);
+    pspVideoPrint(UiMetric.Font, x, 0, TabLabel[i], PSP_COLOR_WHITE);
 
     x += width + 10;
   }
@@ -1087,9 +1087,9 @@ void OnSystemRender(const void *uiobject, const void *item_obj)
   y = SCR_HEIGHT - h - 80;
 
   /* Draw a small representation of the screen */
-  pspVideoShadowRect(x, y, x + w - 1, y + h - 1, PSP_VIDEO_BLACK, 3);
+  pspVideoShadowRect(x, y, x + w - 1, y + h - 1, PSP_COLOR_BLACK, 3);
   pspVideoPutImage(Screen, x, y, w, h);
-  pspVideoDrawRect(x, y, x + w - 1, y + h - 1, PSP_VIDEO_GRAY);
+  pspVideoDrawRect(x, y, x + w - 1, y + h - 1, PSP_COLOR_GRAY);
 
   OnGenericRender(uiobject, item_obj);
 }

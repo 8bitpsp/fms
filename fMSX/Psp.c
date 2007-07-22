@@ -205,8 +205,8 @@ void PutImage(void)
     int width = pspFontGetTextWidth(&PspStockFont, Message);
     int height = pspFontGetLineHeight(&PspStockFont);
 
-    pspVideoFillRect(0, 0, width, height, PSP_VIDEO_BLACK);
-    pspVideoPrint(&PspStockFont, 0, 0, Message, PSP_VIDEO_WHITE);
+    pspVideoFillRect(0, 0, width, height, PSP_COLOR_BLACK);
+    pspVideoPrint(&PspStockFont, 0, 0, Message, PSP_COLOR_WHITE);
 
     if (MessageTimer < 1) 
       ClearBufferCount = 2;
@@ -223,8 +223,8 @@ void PutImage(void)
     int width = pspFontGetTextWidth(&PspStockFont, fps_display);
     int height = pspFontGetLineHeight(&PspStockFont);
 
-    pspVideoFillRect(SCR_WIDTH - width, 0, SCR_WIDTH, height, PSP_VIDEO_BLACK);
-    pspVideoPrint(&PspStockFont, SCR_WIDTH - width, 0, fps_display, PSP_VIDEO_WHITE);
+    pspVideoFillRect(SCR_WIDTH - width, 0, SCR_WIDTH, height, PSP_COLOR_BLACK);
+    pspVideoPrint(&PspStockFont, SCR_WIDTH - width, 0, fps_display, PSP_COLOR_WHITE);
   }
 
   pspVideoEnd();

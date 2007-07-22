@@ -237,8 +237,8 @@ void RefreshScreen(void *Buffer,int Width,int Height)
     int width = pspFontGetTextWidth(&PspStockFont, fps_display);
     int height = pspFontGetLineHeight(&PspStockFont);
 
-    pspVideoFillRect(SCR_WIDTH - width, 0, SCR_WIDTH, height, PSP_VIDEO_BLACK);
-    pspVideoPrint(&PspStockFont, SCR_WIDTH - width, 0, fps_display, PSP_VIDEO_WHITE);
+    pspVideoFillRect(SCR_WIDTH - width, 0, SCR_WIDTH, height, PSP_COLOR_BLACK);
+    pspVideoPrint(&PspStockFont, SCR_WIDTH - width, 0, fps_display, PSP_COLOR_WHITE);
   }
 
   /* Wait if needed */
