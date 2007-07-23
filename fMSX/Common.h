@@ -75,6 +75,7 @@ pixel *RefreshBorder(register byte Y,register pixel C)
 {
   register pixel *P;
   register int H;
+  register int E,I,J,S;
 
   /* First line number in the buffer */
   if(!Y) FirstLine=(ScanLines212? 8:18)+VAdjust;
@@ -89,21 +90,37 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   P=(pixel *)XBuf;
 
   /* Paint top of the screen */
-  if(!Y) for(H=WIDTH*FirstLine-1;H>=0;H--) P[H]=C;
+  S=XBufPitch-WIDTH;
+  if(!Y)
+  {
+    for(I=0,H=0;I<FirstLine;I++)
+    {
+      for(J=0;J<WIDTH;J++,H++) P[H]=C;
+      H+=S;
+    }
+  }
 
   /* Start of the line */
-  P+=WIDTH*(FirstLine+Y);
+  P+=XBufPitch*(FirstLine+Y);
 
   /* Paint left/right borders */
-  for(H=(WIDTH-256)/2+HAdjust;H>0;H--) P[H-1]=C;
-  for(H=(WIDTH-256)/2-HAdjust;H>0;H--) P[WIDTH-H]=C;
+  E=(WIDTH-256)>>1;
+  for(H=E+HAdjust;H>0;H--) P[H-1]=C;
+  for(H=E-HAdjust;H>0;H--) P[WIDTH-H]=C;
 
   /* Paint bottom of the screen */
   H=ScanLines212? 212:192;
-  if(Y==H-1) for(H=WIDTH*(HEIGHT-H-FirstLine+1)-1;H>=WIDTH;H--) P[H]=C;
+  if(Y==H-1)
+  {
+    for(I=0,H=XBufPitch+1;I<FirstLine;I++)
+    {
+      for(J=0;J<WIDTH;J++,H++) P[H]=C;
+      H+=S;
+    }
+  }
 
   /* Return pointer to the scanline in XBuf */
-  return(P+(WIDTH-256)/2+HAdjust);
+  return(P+E+HAdjust);
 }
 
 /** Sprites() ************************************************/

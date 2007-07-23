@@ -64,7 +64,8 @@
 #define OPTION_SHOW_FPS     6
 #define OPTION_CONTROL_MODE 7
 
-PspImage *Screen;
+extern PspImage *Screen;
+
 int DisplayMode;
 int UpdateFreq;
 int VSync;
@@ -619,10 +620,6 @@ void InitMenu()
 
   /* Initialize configuration */
   InitGameConfig(&GameConfig);
-
-  /* Initialize screen buffer */
-  Screen = pspImageCreate(WIDTH, HEIGHT, PSP_IMAGE_16BPP);
-  pspImageClear(Screen, 0x8000);
 
   /* Initialize options */
   LoadOptions();
@@ -1358,8 +1355,8 @@ void OnGenericRender(const void *uiobject, const void *item_obj)
 void OnSystemRender(const void *uiobject, const void *item_obj)
 {
   int w, h, x, y;
-  w = WIDTH / 2;
-  h = HEIGHT / 2;
+  w = Screen->Viewport.Width >> 1;
+  h = Screen->Viewport.Height >> 1;
   x = SCR_WIDTH - w - 8;
   y = SCR_HEIGHT - h - 56;
 
@@ -1819,7 +1816,6 @@ void TrashMenu()
   /* Trash images */
   if (Background) pspImageDestroy(Background);
   if (NoSaveIcon) pspImageDestroy(NoSaveIcon);
-  if (Screen) pspImageDestroy(Screen);
 
   if (CartPath) free(CartPath);
   if (DiskPath) free(DiskPath);

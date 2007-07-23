@@ -51,6 +51,7 @@ typedef unsigned short pixel;
 
 static unsigned int BPal[256],XPal[80],XPal0; 
 static pixel *XBuf;
+static const int XBufPitch = 512;
 static byte JoyState;
 static int MouseState;
 
@@ -68,8 +69,8 @@ extern struct GameConfig GameConfig;
 
 extern int DisplayMode;
 extern int Frameskip;
-extern PspImage *Screen;
 
+PspImage *Screen;
 static int ScreenX;
 static int ScreenY;
 static int ScreenW;
@@ -107,10 +108,20 @@ int InitMachine(void)
 {
   int J,I;
 
+  /* Initialize screen buffer */
+  if (!(Screen = pspImageCreate(XBufPitch, HEIGHT, PSP_IMAGE_16BPP)))
+    return(0);
+  Screen->Viewport.Width = WIDTH;
+
+  pspImageClear(Screen, 0x8000);
+
   /* Initialize keyboard */
   if (!(KeyLayout = pspKybdLoadLayout("msx.lyt", 
     GetKeyStatus, HandleKeyboardInput)))
-      return(0);
+  {
+    pspImageDestroy(Screen);
+    return(0);
+  }
 
   /* Initialize menu */
   InitMenu();
@@ -149,8 +160,8 @@ int InitMachine(void)
 #endif
 
   /* Init screen position */
-  ScreenW = Screen->Width;
-  ScreenH = Screen->Height;
+  ScreenW = Screen->Viewport.Width;
+  ScreenH = Screen->Viewport.Height;
   ScreenX = ScreenY = 0;
 
   return(1);
@@ -165,6 +176,9 @@ void TrashMachine(void)
   StopSound();
   TrashSound();
 #endif
+
+  /* Destroy screen buffer */
+  if (Screen) pspImageDestroy(Screen);
 
   /* Destroy keyboard */
   pspKybdDestroyLayout(KeyLayout);
@@ -379,12 +393,12 @@ static void OpenMenu()
   {
   default:
   case DISPLAY_MODE_UNSCALED:
-    ScreenW = Screen->Width;
-    ScreenH = Screen->Height;
+    ScreenW = Screen->Viewport.Width;
+    ScreenH = Screen->Viewport.Height;
     break;
   case DISPLAY_MODE_FIT_HEIGHT:
-    ratio = (float)SCR_HEIGHT / (float)Screen->Height;
-    ScreenW = (float)Screen->Width * ratio;
+    ratio = (float)SCR_HEIGHT / (float)Screen->Viewport.Height;
+    ScreenW = (float)Screen->Viewport.Width * ratio;
     ScreenH = SCR_HEIGHT;
     break;
   case DISPLAY_MODE_FILL_SCREEN:
