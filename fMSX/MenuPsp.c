@@ -471,6 +471,17 @@ static const PspMenuItemDef
       ControlModeOptions,  -1, "\026\250\020 Change OK and Cancel button mapping" },
     { NULL, NULL }
   };
+/*
+  TabDef[] = {
+    { "Game",      (void*)TAB_QUICKLOAD, NULL, -1, NULL },
+    { "Save/Load", (void*)TAB_STATE,     NULL, -1, NULL },
+    { "Controls",  (void*)TAB_CONTROL,   NULL, -1, NULL },
+    { "Options",   (void*)TAB_OPTION,    NULL, -1, NULL },
+    { "System",    (void*)TAB_SYSTEM,    NULL, -1, NULL },
+    { "About",     (void*)TAB_ABOUT,     NULL, -1, NULL },
+    { NULL, NULL }
+  };
+*/
 
 int OnGenericButtonPress(const PspUiFileBrowser *browser, const char *path, 
       u32 button_mask);

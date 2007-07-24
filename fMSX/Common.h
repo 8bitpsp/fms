@@ -112,7 +112,7 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   H=ScanLines212? 212:192;
   if(Y==H-1)
   {
-    for(I=0,H=XBufPitch+1;I<FirstLine;I++)
+    for(I=FirstLine,H=XBufPitch;I>0;I--)
     {
       for(J=0;J<WIDTH;J++,H++) P[H]=C;
       H+=S;
