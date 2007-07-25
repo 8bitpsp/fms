@@ -107,7 +107,7 @@ int InitMachine(void)
   int J,I;
 
   /* Initialize screen buffer */
-  if (!(Screen = pspImageCreate(512, HEIGHT, PSP_IMAGE_16BPP)))
+  if (!(Screen = pspImageCreateVram(512, HEIGHT, PSP_IMAGE_16BPP)))
     return(0);
   Screen->Viewport.Width = WIDTH;
 
