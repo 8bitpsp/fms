@@ -1,6 +1,6 @@
 PSPSDK=$(shell psp-config --pspsdk-path)
 
-DEFINES += -DPSP -DLSB_FIRST -DBPP16 -DSOUND -DZLIB
+DEFINES += -DPSP -DLSB_FIRST -DBPP16 -DSOUND -DZLIB  -DVERSION=\"$(VERSION)\"
 
 MINIZIP=minizip
 PSPLIB=psplib

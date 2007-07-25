@@ -87,10 +87,10 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   XPal[0]=(!BGColor||SolidColor0)? XPal0:XPal[BGColor];
 
   /* Start of the buffer */
-  P=(pixel *)XBuf;
+  P=(pixel *)Screen->Pixels;
 
   /* Paint top of the screen */
-  S=XBufPitch-WIDTH;
+  S=Screen->Width-WIDTH;
   if(!Y)
   {
     for(I=0,H=0;I<FirstLine;I++)
@@ -101,7 +101,7 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   }
 
   /* Start of the line */
-  P+=XBufPitch*(FirstLine+Y);
+  P+=Screen->Width*(FirstLine+Y);
 
   /* Paint left/right borders */
   E=(WIDTH-256)>>1;
@@ -112,7 +112,7 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   H=ScanLines212? 212:192;
   if(Y==H-1)
   {
-    for(I=FirstLine,H=XBufPitch;I>0;I--)
+    for(I=FirstLine,H=Screen->Width;I>0;I--)
     {
       for(J=0;J<WIDTH;J++,H++) P[H]=C;
       H+=S;

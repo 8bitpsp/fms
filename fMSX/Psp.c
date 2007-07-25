@@ -50,8 +50,6 @@ extern char *ScreenshotPath;
 typedef unsigned short pixel;
 
 static unsigned int BPal[256],XPal[80],XPal0; 
-static pixel *XBuf;
-static const int XBufPitch = 512;
 static byte JoyState;
 static int MouseState;
 
@@ -109,7 +107,7 @@ int InitMachine(void)
   int J,I;
 
   /* Initialize screen buffer */
-  if (!(Screen = pspImageCreate(XBufPitch, HEIGHT, PSP_IMAGE_16BPP)))
+  if (!(Screen = pspImageCreate(512, HEIGHT, PSP_IMAGE_16BPP)))
     return(0);
   Screen->Viewport.Width = WIDTH;
 
@@ -137,9 +135,6 @@ int InitMachine(void)
   MessageTimer=0;
   pspPerfInitFps(&FpsCounter);
   ClearBufferCount=0;
-
-  /* Screen buffer */
-  XBuf=Screen->Pixels;
 
   /* Reset the palette */
   for(J=0;J<16;J++) XPal[J]=0;

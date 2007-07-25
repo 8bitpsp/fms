@@ -1,4 +1,5 @@
 COLEM=ColEm
+VERSION=2.2.2
 
 DEFINES=-DCOLEM
 
@@ -9,7 +10,7 @@ OBJS=$(BUILD_MINIZIP) $(BUILD_PSPLIB) $(BUILD_EMULIB) $(BUILD_Z80) \
      $(BUILD_COLEM)
 
 TARGET=colempsp
-PSP_EBOOT_TITLE=ColEm PSP 2.2.2
+PSP_EBOOT_TITLE=ColEm PSP $(VERSION)
 PSP_EBOOT_ICON=data/colem-icon.png
 
 include Common.mak

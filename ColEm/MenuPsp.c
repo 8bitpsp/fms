@@ -172,42 +172,42 @@ static const PspMenuItemDef
     { NULL, NULL }
   },
   ControlMenuDef[] = {
-    { PSP_FONT_ANALUP,     (void*)MAP_ANALOG_UP,
+    { PSP_CHAR_ANALUP,     (void*)MAP_ANALOG_UP,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_ANALDOWN,   (void*)MAP_ANALOG_DOWN,
+    { PSP_CHAR_ANALDOWN,   (void*)MAP_ANALOG_DOWN,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_ANALLEFT,   (void*)MAP_ANALOG_LEFT,
+    { PSP_CHAR_ANALLEFT,   (void*)MAP_ANALOG_LEFT,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_ANALRIGHT,  (void*)MAP_ANALOG_RIGHT,
+    { PSP_CHAR_ANALRIGHT,  (void*)MAP_ANALOG_RIGHT,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_UP,         (void*)MAP_BUTTON_UP,
+    { PSP_CHAR_UP,         (void*)MAP_BUTTON_UP,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_DOWN,       (void*)MAP_BUTTON_DOWN,
+    { PSP_CHAR_DOWN,       (void*)MAP_BUTTON_DOWN,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_LEFT,       (void*)MAP_BUTTON_LEFT,
+    { PSP_CHAR_LEFT,       (void*)MAP_BUTTON_LEFT,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_RIGHT,      (void*)MAP_BUTTON_RIGHT,
+    { PSP_CHAR_RIGHT,      (void*)MAP_BUTTON_RIGHT,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_SQUARE,     (void*)MAP_BUTTON_SQUARE,
+    { PSP_CHAR_SQUARE,     (void*)MAP_BUTTON_SQUARE,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_CROSS,      (void*)MAP_BUTTON_CROSS,
+    { PSP_CHAR_CROSS,      (void*)MAP_BUTTON_CROSS,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_CIRCLE,     (void*)MAP_BUTTON_CIRCLE,
+    { PSP_CHAR_CIRCLE,     (void*)MAP_BUTTON_CIRCLE,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_TRIANGLE,   (void*)MAP_BUTTON_TRIANGLE,
+    { PSP_CHAR_TRIANGLE,   (void*)MAP_BUTTON_TRIANGLE,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_LTRIGGER,   (void*)MAP_BUTTON_LTRIGGER,
+    { PSP_CHAR_LTRIGGER,   (void*)MAP_BUTTON_LTRIGGER,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_RTRIGGER,   (void*)MAP_BUTTON_RTRIGGER,
+    { PSP_CHAR_RTRIGGER,   (void*)MAP_BUTTON_RTRIGGER,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_SELECT,     (void*)MAP_BUTTON_SELECT,
+    { PSP_CHAR_SELECT,     (void*)MAP_BUTTON_SELECT,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_START,      (void*)MAP_BUTTON_START,
+    { PSP_CHAR_START,      (void*)MAP_BUTTON_START,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_LTRIGGER"+"PSP_FONT_RTRIGGER,
+    { PSP_CHAR_LTRIGGER"+"PSP_CHAR_RTRIGGER,
                            (void*)MAP_BUTTON_LRTRIGGERS,
       ButtonMapOptions, -1, ControlHelpText },
-    { PSP_FONT_START"+"PSP_FONT_SELECT,
+    { PSP_CHAR_START"+"PSP_CHAR_SELECT,
                            (void*)MAP_BUTTON_STARTSELECT,
       ButtonMapOptions, -1, ControlHelpText },
     { NULL, NULL }
@@ -501,6 +501,7 @@ void InitMenu()
   UiMetric.TitlePadding = 4;
   UiMetric.TitleColor = PSP_COLOR_YELLOW;
   UiMetric.MenuFps = 30;
+  UiMetric.TabBgColor = COLOR(0xb8,0xb8,0xb8,0xff);
 }
 
 int OnQuickloadOk(const void *browser, const void *path)
@@ -638,7 +639,7 @@ void OnSplashRender(const void *splash, const void *null)
   int fh, i, x, y, height;
   const char *lines[] = 
   { 
-    "ColEm-PSP version 2.2.2 ("__DATE__")", 
+    "ColEm-PSP version "VERSION" ("__DATE__")", 
     "\026http://psp.akop.org/colem",
     " ",
     "2007 Akop Karapetyan (port)",
@@ -780,39 +781,15 @@ void DisplayMenu()
 /* Handles drawing of generic items */
 void OnGenericRender(const void *uiobject, const void *item_obj)
 {
-  static int percentiles[] = { 60, 30, 12, 0 };
-  static char caption[32];
-  int percent_left, time_left, hr_left, min_left, i, width;
-  pspTime time;
+  static char status[128];
+  pspUiGetStatusString(status, sizeof(status));
 
-  time_left = pspGetBatteryTime();
-  sceRtcGetCurrentClockLocalTime(&time);
-  percent_left = pspGetBatteryPercent();
-  hr_left = time_left / 60;
-  min_left = time_left % 60;
-
-  /* Determine appropriate charge icon */
-  for (i = 0; i < 4; i++)
-    if (percent_left >= percentiles[i])
-      break;
-
-  /* Display PSP status (time, battery, etc..) */
-  sprintf(caption, "\270%2i/%2i %02i%c%02i %c%3i%% (%02i:%02i) ", 
-    time.month, time.day, 
-    time.hour, (time.microseconds > 500000) ? ':' : ' ', time.minutes, 
-    (percent_left > 6) 
-      ? 0263 + i 
-      : 0263 + i + (time.microseconds > 500000) ? 0 : 1, 
-    percent_left, 
-    (hr_left < 0) ? 0 : hr_left, (min_left < 0) ? 0 : min_left);
-
-  width = pspFontGetTextWidth(UiMetric.Font, caption);
-  pspVideoPrint(UiMetric.Font, SCR_WIDTH - width, 0, caption, PSP_COLOR_WHITE);
+  int height = pspFontGetLineHeight(UiMetric.Font);
+  int width = pspFontGetTextWidth(UiMetric.Font, status);
+  pspVideoPrint(UiMetric.Font, SCR_WIDTH - width, 0, status, PSP_COLOR_WHITE);
 
   /* Draw tabs */
-  int height = pspFontGetLineHeight(UiMetric.Font);
-  int x;
-
+  int i, x;
   for (i = 0, x = 5; i <= TAB_MAX; i++)
   {
     if (!GameName)
@@ -823,7 +800,8 @@ void OnGenericRender(const void *uiobject, const void *item_obj)
 
     /* Draw background of active tab */
     if (i == TabIndex) 
-      pspVideoFillRect(x - 5, 0, x + width + 5, height + 1, COLOR(0xb8,0xb8,0xb8,0xff));
+      pspVideoFillRect(x - 5, 0, x + width + 5, height + 1, 
+        UiMetric.TabBgColor);
 
     /* Draw name of tab */
     pspVideoPrint(UiMetric.Font, x, 0, TabLabel[i], PSP_COLOR_WHITE);
