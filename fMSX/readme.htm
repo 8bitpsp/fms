@@ -111,14 +111,13 @@
 
       <h1 id="news">New Features</h1>
       <div class="section">
-        <h2>Version 3.3.1 (June 17, 2007)</h2>
+        <h2>Version 3.3.2 (July 24, 2007)</h2>
+
         <ul>
-          <li>Virtual keyboard improvements. The virtual keyboard now requires 
-            an external file - 'msx.lyt' in the emulator directory&mdash;the file 
-            contains keyboard layout information</li>
-          <li>fMSX updated to version 3.3. Note that pre-3.3 version save states will
-            no longer load</li>
-          <li>Lots of minor bug fixes</li>
+          <li>60% increase in rendering speed--MSX2 titles (including
+              Metal Gear 2) run at 100% speed at 222MHz</li>
+          <li>Fixed buffer overflow error affecting units without 
+              a battery (thanks to Alpha Beta for tracking it down)</li>
         </ul>
       </div>
 
@@ -274,15 +273,15 @@
 
       <h1 id="compile">Compiling</h1>
       <div class="section">
-        <p>Source code for fMSX PSP is now only available via a Subversion 
-        (SVN) repository. To check out a particular version, run</p>
+        <p>Source code for fMSX PSP is available via a Subversion (SVN)
+          repository. To check out a particular version, run</p>
 
-        <p><code>svn co http://svn.akop.org/fmsx/tags/<i>date</i></code></p>
+        <p><code>svn co http://svn.akop.org/psp/tags/fms/<i>date</i></code></p>
 
-        <p>where <i>date</i> is the date of a particular version's release, in 
-        YYYY.MM.DD format (<i>2007.04.20</i>, for example). Note that 
+        <p>where <i>date</i> is the date of a particular version's release, in
+        DD.MM.YYYY format (<i>20.04.2007</i>, for example). Note that
         for this to work, you need to have Subversion installed.</p>
-        
+
         <div>To compile fMSX PSP, you will need 
         <a href="svn://svn.pspdev.org/psp/trunk/zlib">zlib</a> (svn://) and 
         <a href="svn://svn.pspdev.org/psp/trunk/libpng">libpng</a> (svn://).</div>
@@ -293,6 +292,16 @@
 
       <h1 id="hist">Version History</h1>
       <div class="section">
+        <h2>Version 3.3.1 (June 17, 2007)</h2>
+        <ul>
+          <li>Virtual keyboard improvements. The virtual keyboard now requires 
+            an external file - 'msx.lyt' in the emulator directory&mdash;the file 
+            contains keyboard layout information</li>
+          <li>fMSX updated to version 3.3. Note that pre-3.3 version save states will
+            no longer load</li>
+          <li>Lots of minor bug fixes</li>
+        </ul>
+
         <h2>Version 3.2.1 (June 4, 2007)</h2>
         <ul>
           <li>Added menu navigation options - select from US PSP navigation 

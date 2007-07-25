@@ -25,7 +25,7 @@
 #include "Coleco.h"
 #include "Sound.h"
 
-PSP_MODULE_INFO("ColEm PSP 2.2.1", 0, 1, 1);
+PSP_MODULE_INFO(PSP_APP_NAME, 0, 1, 1);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
 static void ExitCallback(void* arg)

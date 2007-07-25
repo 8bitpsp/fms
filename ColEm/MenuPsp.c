@@ -639,7 +639,7 @@ void OnSplashRender(const void *splash, const void *null)
   int fh, i, x, y, height;
   const char *lines[] = 
   { 
-    "ColEm-PSP version "VERSION" ("__DATE__")", 
+    PSP_APP_NAME" version "PSP_APP_VER" ("__DATE__")",
     "\026http://psp.akop.org/colem",
     " ",
     "2007 Akop Karapetyan (port)",

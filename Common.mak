@@ -1,6 +1,7 @@
 PSPSDK=$(shell psp-config --pspsdk-path)
 
-DEFINES += -DPSP -DLSB_FIRST -DBPP16 -DSOUND -DZLIB  -DVERSION=\"$(VERSION)\"
+DEFINES += -DPSP -DLSB_FIRST -DBPP16 -DSOUND -DZLIB \
+           -DPSP_APP_VER=\"$(PSP_APP_VER)\" -DPSP_APP_NAME="\"$(PSP_APP_NAME)\""
 
 MINIZIP=minizip
 PSPLIB=psplib
@@ -30,31 +31,8 @@ LIBDIR +=
 LIBS += -lpspgu -lpspaudio -lpsprtc -lpsppower -lpng -lz -lm
 EXTRA_TARGETS=EBOOT.PBP
 
+PSP_EBOOT_TITLE=$(PSP_APP_NAME) $(PSP_APP_VER)
+
 include $(PSPSDK)/lib/build.mak
 
-#PSPLIB dependencies
-
-$(PSPLIB)/audio.o:  $(PSPLIB)/audio.c $(PSPLIB)/audio.h
-$(PSPLIB)/perf.o:   $(PSPLIB)/perf.c $(PSPLIB)/perf.h
-$(PSPLIB)/ctrl.o:   $(PSPLIB)/ctrl.c $(PSPLIB)/ctrl.h
-$(PSPLIB)/fileio.o: $(PSPLIB)/fileio.c $(PSPLIB)/fileio.h
-$(PSPLIB)/font.o:   $(PSPLIB)/font.c $(PSPLIB)/font.h \
-                    $(PSPLIB)/stockfont.h
-$(PSPLIB)/image.o:  $(PSPLIB)/image.c $(PSPLIB)/image.h
-$(PSPLIB)/kybd.o:   $(PSPLIB)/kybd.c $(PSPLIB)/kybd.h \
-                    $(PSPLIB)/ctrl.c $(PSPLIB)/video.c \
-                    $(PSPLIB)/image.c $(PSPLIB)/font.c
-$(PSPLIB)/menu.o:   $(PSPLIB)/menu.c $(PSPLIB)/menu.h
-$(PSPLIB)/init.o:   $(PSPLIB)/init.c $(PSPLIB)/init.h
-$(PSPLIB)/psp.o:    $(PSPLIB)/psp.c $(PSPLIB)/psp.h \
-                    $(PSPLIB)/fileio.c
-$(PSPLIB)/ui.o:     $(PSPLIB)/ui.c $(PSPLIB)/ui.h \
-                    $(PSPLIB)/video.c $(PSPLIB)/menu.c \
-                    $(PSPLIB)/psp.c $(PSPLIB)/fileio.c \
-                    $(PSPLIB)/ctrl.c
-$(PSPLIB)/video.o:  $(PSPLIB)/video.c $(PSPLIB)/video.h \
-                    $(PSPLIB)/font.c $(PSPLIB)/image.c
-$(PSPLIB)/stockfont.h: $(DATA)/genfont $(PSPLIB)/stockfont.fd
-	$< < $(word 2,$^) > $@
-$(DATA)/genfont: $(PSPLIB)/genfont.c
-	cc $< -o $@
+include $(PSPLIB)/build.mak
