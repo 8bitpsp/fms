@@ -113,9 +113,9 @@ static void LoadOptions();
 static void InitOptionDefaults();
 static int  SaveOptions();
 
-PspImage* LoadStateIcon(const char *path);
-int       LoadState(const char *path);
-PspImage* SaveState(const char *path, PspImage *icon);
+static PspImage* LoadStateIcon(const char *path);
+static int LoadState(const char *path);
+static PspImage* SaveState(const char *path, PspImage *icon);
 
 // TODO: 
 #define WIDTH  272
