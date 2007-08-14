@@ -304,7 +304,7 @@ unsigned int Joystick(void)
   {
     if (ShowKybdHeld) pspKybdNavigate(KeyLayout, &pad);
 
-    //* DEBUGGING
+    /* DEBUGGING
     if ((pad.Buttons & (PSP_CTRL_SELECT | PSP_CTRL_START))
       == (PSP_CTRL_SELECT | PSP_CTRL_START))
         CaptureVramBuffer(ScreenshotPath, "game");
