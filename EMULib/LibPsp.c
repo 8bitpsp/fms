@@ -24,36 +24,6 @@
 #include "unzip.h"
 #endif
 
-int CaptureVramBuffer(const char *path, const char *filename)
-{
-  PspImage* vram = pspVideoGetVramBufferCopy();
-  if (!vram) return 0;
-
-  int exit_code = SaveScreenshot(path, filename, vram);
-  pspImageDestroy(vram);
-
-  return exit_code;
-}
-
-int SaveScreenshot(const char *path, const char *filename, const PspImage *image)
-{
-  char *full_path;
-
-  /* Allocate enough space for the file path */
-  if (!(full_path = (char*)malloc(sizeof(char) * (strlen(path) + strlen(filename) + 10))))
-    return 0;
-
-  /* Loop until first free screenshot slot is found */
-  int i = 0;
-  do
-  {
-    sprintf(full_path, "%s%s-%02i.png", path, filename, i);
-  } while (pspFileIoCheckIfExists(full_path) && ++i < 100);
-
-  /* Save the screenshot */
-  return pspImageSavePng(full_path, image);
-}
-
 int FileExistsArchived(const char *path)
 {
   /* Try opening file */

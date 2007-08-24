@@ -13,9 +13,9 @@ BUILD_Z80=$(Z80)/Z80.o $(Z80)/Debug.o
 BUILD_PSPLIB=$(PSPLIB)/psp.o $(PSPLIB)/font.o $(PSPLIB)/image.o \
              $(PSPLIB)/video.o $(PSPLIB)/audio.o $(PSPLIB)/fileio.o \
              $(PSPLIB)/menu.o $(PSPLIB)/ui.o $(PSPLIB)/ctrl.o \
-             $(PSPLIB)/kybd.o $(PSPLIB)/perf.o $(PSPLIB)/init.o
-BUILD_EMULIB=$(EMULIB)/Sound.o $(EMULIB)/SndPsp.o \
-             $(EMULIB)/INIFile.o $(EMULIB)/LibPsp.o
+             $(PSPLIB)/kybd.o $(PSPLIB)/perf.o $(PSPLIB)/init.o \
+             $(PSPLIB)/util.o
+BUILD_EMULIB=$(EMULIB)/Sound.o $(EMULIB)/SndPsp.o $(EMULIB)/LibPsp.o
 
 ifdef MINIZIP
 BUILD_MINIZIP=$(MINIZIP)/ioapi.o $(MINIZIP)/unzip.o $(MINIZIP)/zip.o

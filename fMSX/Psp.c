@@ -22,6 +22,7 @@
 #include "ctrl.h"
 #include "kybd.h"
 #include "perf.h"
+#include "util.h"
 #include "fileio.h"
 #include "MenuPsp.h"
 #include "LibPsp.h"
@@ -38,7 +39,7 @@
 
 /** Public parameters ****************************************/
 int UseSound  = 44100;          /* Sound driver frequency    */
-extern int UpdateFreq;
+extern int FrameLimiter;
 extern int VSync;
 extern int ShowFps;
 extern char *ScreenshotPath;
@@ -239,7 +240,7 @@ void PutImage(void)
   pspVideoEnd();
 
   /* Wait if needed */
-  if (UpdateFreq)
+  if (FrameLimiter)
   {
     do { sceRtcGetCurrentTick(&CurrentTick); }
     while (CurrentTick - LastTick < TicksPerUpdate);
@@ -306,11 +307,11 @@ void Keyboard(void)
 
     MouseState=pad.Lx|(pad.Ly<<8);
 
-    //* DEBUGGING
+#ifdef PSP_DEBUG
     if ((pad.Buttons & (PSP_CTRL_SELECT | PSP_CTRL_START))
       == (PSP_CTRL_SELECT | PSP_CTRL_START))
-        CaptureVramBuffer(ScreenshotPath, "game");
-    //*/
+        pspUtilSaveVramSeq(ScreenshotPath, "game");
+#endif
 
     /* Parse input */
     int on, code;
@@ -410,8 +411,9 @@ static void OpenMenu()
 
   /* Recompute update frequency */
   TicksPerSecond = sceRtcGetTickResolution();
-  if (UpdateFreq)
+  if (FrameLimiter)
   {
+    int UpdateFreq = (Mode & MSX_VIDEO) == MSX_NTSC ? 60 : 50;
     TicksPerUpdate = TicksPerSecond / (UpdateFreq / (Frameskip + 1));
     sceRtcGetCurrentTick(&LastTick);
   }

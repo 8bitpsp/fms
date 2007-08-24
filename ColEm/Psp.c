@@ -15,7 +15,7 @@
 #include "Sound.h"
 
 #include "MenuPsp.h"
-#include "LibPsp.h"
+#include "util.h"
 
 #include "perf.h"
 #include "video.h"
@@ -34,7 +34,7 @@ int SndSwitch;             /* Mask of enabled sound channels */
 int SndVolume;             /* Master volume for audio        */
 
 extern PspImage *Screen;   /* Display buffer  */
-extern int UpdateFreq;
+extern int FrameLimiter;
 extern int DisplayMode;
 extern int Frameskip;
 extern int VSync;
@@ -158,8 +158,9 @@ static void OpenMenu()
 
   /* Recompute update frequency */
   TicksPerSecond = sceRtcGetTickResolution();
-  if (UpdateFreq)
+  if (FrameLimiter)
   {
+    int UpdateFreq = (Mode & CV_PAL) == CV_NTSC ? 60 : 50;
     TicksPerUpdate = TicksPerSecond / (UpdateFreq / (Frameskip + 1));
     sceRtcGetCurrentTick(&LastTick);
   }
@@ -242,7 +243,7 @@ void RefreshScreen(void *Buffer,int Width,int Height)
   }
 
   /* Wait if needed */
-  if (UpdateFreq)
+  if (FrameLimiter)
   {
     do { sceRtcGetCurrentTick(&CurrentTick); }
     while (CurrentTick - LastTick < TicksPerUpdate);
@@ -304,11 +305,11 @@ unsigned int Joystick(void)
   {
     if (ShowKybdHeld) pspKybdNavigate(KeyLayout, &pad);
 
-    /* DEBUGGING
+#ifdef PSP_DEBUG
     if ((pad.Buttons & (PSP_CTRL_SELECT | PSP_CTRL_START))
       == (PSP_CTRL_SELECT | PSP_CTRL_START))
-        CaptureVramBuffer(ScreenshotPath, "game");
-    //*/
+        pspUtilSaveVramSeq(ScreenshotPath, "game");
+#endif
 
     /* Parse input */
     int i, on, code;

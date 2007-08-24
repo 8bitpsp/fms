@@ -19,8 +19,6 @@
 #define FILE_PLAIN     1
 #define FILE_ZIP       2
 
-int CaptureVramBuffer(const char *path, const char *filename);
-int SaveScreenshot(const char *path, const char *filename, const PspImage *image);
 int FileExistsArchived(const char *path);
 
 #endif /* LIBPSP_H */

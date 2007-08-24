@@ -19,7 +19,6 @@
 #include <pspkernel.h>
 
 #include "Coleco.h"
-#include "INIFile.h"
 
 #include "psp.h"
 #include "ui.h"
@@ -27,6 +26,8 @@
 #include "video.h"
 #include "ctrl.h"
 #include "image.h"
+#include "init.h"
+#include "util.h"
 
 #ifdef MINIZIP
 #include "unzip.h"
@@ -39,13 +40,13 @@
 #define SYSTEM_RESET       2
 #define SYSTEM_TIMING      3
 
-#define OPTION_DISPLAY_MODE 1
-#define OPTION_SYNC_FREQ    2
-#define OPTION_FRAMESKIP    3
-#define OPTION_VSYNC        4
-#define OPTION_CLOCK_FREQ   5
-#define OPTION_SHOW_FPS     6
-#define OPTION_CONTROL_MODE 7
+#define OPTION_DISPLAY_MODE  1
+#define OPTION_FRAME_LIMITER 2
+#define OPTION_FRAMESKIP     3
+#define OPTION_VSYNC         4
+#define OPTION_CLOCK_FREQ    5
+#define OPTION_SHOW_FPS      6
+#define OPTION_CONTROL_MODE  7
 
 #define TAB_QUICKLOAD 0
 #define TAB_STATE     1
@@ -57,7 +58,7 @@
 
 PspImage *Screen;
 int DisplayMode;
-int UpdateFreq;
+int FrameLimiter;
 int VSync;
 int ClockFreq;
 int Frameskip;
@@ -92,146 +93,143 @@ static char *SaveStatePath;
 /* Define various menu options */
 static const PspMenuOptionDef
   ToggleOptions[] = {
-    { "Disabled", (void*)0 },
-    { "Enabled", (void*)1 },
-    { NULL, NULL } },
+    MENU_OPTION("Disabled", 0),
+    MENU_OPTION("Enabled",  1),
+    MENU_END_OPTIONS
+  },
   ScreenSizeOptions[] = {
-    { "Actual size", (void*)DISPLAY_MODE_UNSCALED },
-    { "4:3 scaled (fit height)", (void*)DISPLAY_MODE_FIT_HEIGHT },
-    { "16:9 scaled (fit screen)", (void*)DISPLAY_MODE_FILL_SCREEN },
-    { NULL, NULL } },
-  FrameLimitOptions[] = {
-    { "Disabled", (void*)0 },
-    { "60 fps (NTSC)", (void*)60 },
-    { "50 fps (PAL)", (void*)50 },
-    { NULL, NULL } },
+    MENU_OPTION("Actual size", DISPLAY_MODE_UNSCALED),
+    MENU_OPTION("4:3 scaled (fit height)", DISPLAY_MODE_FIT_HEIGHT),
+    MENU_OPTION("16:9 scaled (fit screen)", DISPLAY_MODE_FILL_SCREEN),
+    MENU_END_OPTIONS
+  },
   FrameSkipOptions[] = {
-    { "No skipping", (void*)0 },
-    { "Skip 1 frame", (void*)1 },
-    { "Skip 2 frames", (void*)2 },
-    { "Skip 3 frames", (void*)3 },
-    { "Skip 4 frames", (void*)4 },
-    { "Skip 5 frames", (void*)5 },
-    { NULL, NULL } },
+    MENU_OPTION("No skipping", 0),
+    MENU_OPTION("Skip 1 frame", 1),
+    MENU_OPTION("Skip 2 frames", 2),
+    MENU_OPTION("Skip 3 frames", 3),
+    MENU_OPTION("Skip 4 frames", 4),
+    MENU_OPTION("Skip 5 frames", 5),
+    MENU_END_OPTIONS
+  },
   PspClockFreqOptions[] = {
-    { "222 MHz", (void*)222 },
-    { "300 MHz", (void*)300 },
-    { "333 MHz", (void*)333 },
-    { NULL, NULL } },
+    MENU_OPTION("222 MHz", 222),
+    MENU_OPTION("300 MHz", 300),
+    MENU_OPTION("333 MHz", 333),
+    MENU_END_OPTIONS
+  },
   TimingOptions[] = {
-    { "NTSC", (void*)0 },
-    { "PAL",  (void*)CV_PAL },
-    { NULL, NULL } },
+    MENU_OPTION("NTSC (60 Hz)", 0),
+    MENU_OPTION("PAL (50 Hz)",  CV_PAL),
+    MENU_END_OPTIONS
+  },
   ControlModeOptions[] = {
-    { "\026\242\020 cancels, \026\241\020 confirms (US)", (void*)0 },
-    { "\026\241\020 cancels, \026\242\020 confirms (Japan)", (void*)1 },
-    { NULL, NULL } },
+    MENU_OPTION("\026\242\020 cancels, \026\241\020 confirms (US)", 0),
+    MENU_OPTION("\026\241\020 cancels, \026\242\020 confirms (Japan)", 1),
+    MENU_END_OPTIONS
+  },
   ButtonMapOptions[] = {
     /* Unmapped */
-    { "None", (void*)0 },
+    MENU_OPTION("None", 0),
     /* Special */
-    { "Special: Open Menu", (void*)(SPC|SPC_MENU) },  
-    { "Special: Show keyboard", (void*)(SPC|SPC_KYBD) },  
+    MENU_OPTION("Special: Open Menu",     (SPC|SPC_MENU)),
+    MENU_OPTION("Special: Show keyboard", (SPC|SPC_KYBD)),
     /* Joystick */
-    { "Joystick Up",          (void*)(JST|JST_UP) },
-    { "Joystick Down",        (void*)(JST|JST_DOWN) },
-    { "Joystick Left",        (void*)(JST|JST_LEFT) },
-    { "Joystick Right",       (void*)(JST|JST_RIGHT) },
-    { "Joystick Left Fire",   (void*)(JST|JST_FIREL) },
-    { "Joystick Right Fire",  (void*)(JST|JST_FIRER) },
-    { "Joystick Purple Fire", (void*)(JST|JST_PURPLE) },
-    { "Joystick Blue Fire",   (void*)(JST|JST_BLUE) },
+    MENU_OPTION("Joystick Up",   (JST|JST_UP)),
+    MENU_OPTION("Joystick Down", (JST|JST_DOWN)),
+    MENU_OPTION("Joystick Left", (JST|JST_LEFT)),
+    MENU_OPTION("Joystick Right",(JST|JST_RIGHT)),
+    MENU_OPTION("Joystick Left Fire",  (JST|JST_FIREL)),
+    MENU_OPTION("Joystick Right Fire", (JST|JST_FIRER)),
+    MENU_OPTION("Joystick Purple Fire",(JST|JST_PURPLE)),
+    MENU_OPTION("Joystick Blue Fire",  (JST|JST_BLUE)),
     /* Digits */
-    { "Keypad 0", (void*)(JST|JST_0) },
-    { "Keypad 1", (void*)(JST|JST_1) },
-    { "Keypad 2", (void*)(JST|JST_2) },
-    { "Keypad 3", (void*)(JST|JST_3) },
-    { "Keypad 4", (void*)(JST|JST_4) },
-    { "Keypad 5", (void*)(JST|JST_5) },
-    { "Keypad 6", (void*)(JST|JST_6) },
-    { "Keypad 7", (void*)(JST|JST_7) },
-    { "Keypad 8", (void*)(JST|JST_8) },
-    { "Keypad 9", (void*)(JST|JST_9) },
-    { "Keypad *", (void*)(JST|JST_STAR) }, 
-    { "Keypad #", (void*)(JST|JST_POUND) }, 
+    MENU_OPTION("Keypad 0", (JST|JST_0)),
+    MENU_OPTION("Keypad 1", (JST|JST_1)),
+    MENU_OPTION("Keypad 2", (JST|JST_2)),
+    MENU_OPTION("Keypad 3", (JST|JST_3)),
+    MENU_OPTION("Keypad 4", (JST|JST_4)),
+    MENU_OPTION("Keypad 5", (JST|JST_5)),
+    MENU_OPTION("Keypad 6", (JST|JST_6)),
+    MENU_OPTION("Keypad 7", (JST|JST_7)),
+    MENU_OPTION("Keypad 8", (JST|JST_8)),
+    MENU_OPTION("Keypad 9", (JST|JST_9)),
+    MENU_OPTION("Keypad *", (JST|JST_STAR)), 
+    MENU_OPTION("Keypad #", (JST|JST_POUND)), 
     /* End */
-    { NULL, NULL } };
+    MENU_END_OPTIONS
+  };
 
 /* Define menu lists */
 static const PspMenuItemDef 
   SystemMenuDef[] = {
-    { "\tConfiguration", NULL, NULL, -1, NULL },
-    { "CPU Timing",         (void*)SYSTEM_TIMING,
-      TimingOptions,       -1, 
-      "\026\250\020 Select video timing mode (PAL/NTSC)" },
-    { "\tSystem", NULL, NULL, -1, NULL },
-    { "Reset",            (void*)SYSTEM_RESET,
-      NULL,             -1, "\026\001\020 Reset" },
-    { "Save screenshot",  (void*)SYSTEM_SCRNSHOT,
-      NULL,             -1, "\026\001\020 Save screenshot" },
-    { NULL, NULL }
+    MENU_HEADER("Configuration"),
+    MENU_ITEM("CPU Timing", SYSTEM_TIMING, TimingOptions, -1, 
+      "\026\250\020 Select video timing mode (PAL/NTSC)"),
+    MENU_HEADER("System"),
+    MENU_ITEM("Reset", SYSTEM_RESET, NULL, -1, "\026\001\020 Reset"),
+    MENU_ITEM("Save screenshot", SYSTEM_SCRNSHOT, NULL, -1, 
+      "\026\001\020 Save screenshot"),
+    MENU_END_ITEMS
   },
   ControlMenuDef[] = {
-    { PSP_CHAR_ANALUP,     (void*)MAP_ANALOG_UP,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_ANALDOWN,   (void*)MAP_ANALOG_DOWN,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_ANALLEFT,   (void*)MAP_ANALOG_LEFT,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_ANALRIGHT,  (void*)MAP_ANALOG_RIGHT,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_UP,         (void*)MAP_BUTTON_UP,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_DOWN,       (void*)MAP_BUTTON_DOWN,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_LEFT,       (void*)MAP_BUTTON_LEFT,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_RIGHT,      (void*)MAP_BUTTON_RIGHT,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_SQUARE,     (void*)MAP_BUTTON_SQUARE,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_CROSS,      (void*)MAP_BUTTON_CROSS,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_CIRCLE,     (void*)MAP_BUTTON_CIRCLE,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_TRIANGLE,   (void*)MAP_BUTTON_TRIANGLE,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_LTRIGGER,   (void*)MAP_BUTTON_LTRIGGER,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_RTRIGGER,   (void*)MAP_BUTTON_RTRIGGER,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_SELECT,     (void*)MAP_BUTTON_SELECT,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_START,      (void*)MAP_BUTTON_START,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_LTRIGGER"+"PSP_CHAR_RTRIGGER,
-                           (void*)MAP_BUTTON_LRTRIGGERS,
-      ButtonMapOptions, -1, ControlHelpText },
-    { PSP_CHAR_START"+"PSP_CHAR_SELECT,
-                           (void*)MAP_BUTTON_STARTSELECT,
-      ButtonMapOptions, -1, ControlHelpText },
-    { NULL, NULL }
+    MENU_ITEM(PSP_CHAR_ANALUP,   MAP_ANALOG_UP,   ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_ANALDOWN, MAP_ANALOG_DOWN, ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_ANALLEFT, MAP_ANALOG_LEFT, ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_ANALRIGHT,MAP_ANALOG_RIGHT,ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_UP,   MAP_BUTTON_UP,   ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_DOWN, MAP_BUTTON_DOWN, ButtonMapOptions, -1,
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_LEFT, MAP_BUTTON_LEFT, ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_RIGHT,MAP_BUTTON_RIGHT,ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_SQUARE,  MAP_BUTTON_SQUARE,  ButtonMapOptions, -1,
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_CROSS,   MAP_BUTTON_CROSS,   ButtonMapOptions, -1,
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_CIRCLE,  MAP_BUTTON_CIRCLE,  ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_TRIANGLE,MAP_BUTTON_TRIANGLE,ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_LTRIGGER,MAP_BUTTON_LTRIGGER,ButtonMapOptions, -1, 
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_RTRIGGER,MAP_BUTTON_RTRIGGER,ButtonMapOptions, -1,
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_SELECT, MAP_BUTTON_SELECT, ButtonMapOptions, -1,
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_START,  MAP_BUTTON_START, ButtonMapOptions, -1,
+      ControlHelpText),
+    MENU_ITEM(PSP_CHAR_LTRIGGER"+"PSP_CHAR_RTRIGGER, MAP_BUTTON_LRTRIGGERS,
+      ButtonMapOptions, -1, ControlHelpText),
+    MENU_ITEM(PSP_CHAR_START"+"PSP_CHAR_SELECT, MAP_BUTTON_STARTSELECT,
+      ButtonMapOptions, -1, ControlHelpText),
+    MENU_END_ITEMS
   },
   OptionMenuDef[] = {
-    { "\tVideo", NULL, NULL, -1, NULL },
-    { "Screen size",         (void*)OPTION_DISPLAY_MODE, 
-      ScreenSizeOptions,   -1, "\026\250\020 Change screen size" },
-    { "\tPerformance", NULL, NULL, -1, NULL },
-    { "Frame limiter",       (void*)OPTION_SYNC_FREQ, 
-      FrameLimitOptions,   -1, "\026\250\020 Change screen update frequency" },
-    { "Frame skipping",      (void*)OPTION_FRAMESKIP,
-      FrameSkipOptions,    -1, "\026\250\020 Change number of frames skipped per update" },
-    { "VSync",               (void*)OPTION_VSYNC,
-      ToggleOptions,       -1, "\026\250\020 Enable to reduce tearing; disable to increase speed" },
-    { "PSP clock frequency", (void*)OPTION_CLOCK_FREQ,
-      PspClockFreqOptions, -1, 
-      "\026\250\020 Larger values: faster emulation, faster battery depletion (default: 222MHz)" },
-    { "Show FPS counter",    (void*)OPTION_SHOW_FPS,
-      ToggleOptions,       -1, "\026\250\020 Show/hide the frames-per-second counter" },
-    { "\tMenu", NULL, NULL, -1, NULL },
-    { "Button mode",        (void*)OPTION_CONTROL_MODE,
-      ControlModeOptions,  -1, "\026\250\020 Change OK and Cancel button mapping" },
-    { NULL, NULL }
+    MENU_HEADER("Video"),
+    MENU_ITEM("Screen size", OPTION_DISPLAY_MODE, ScreenSizeOptions, -1, 
+      "\026\250\020 Change screen size"),
+    MENU_HEADER("Performance"),
+    MENU_ITEM("Frame limiter", OPTION_FRAME_LIMITER, ToggleOptions, -1,
+      "\026\250\020 Change screen update frequency"),
+    MENU_ITEM("Frame skipping", OPTION_FRAMESKIP, FrameSkipOptions, -1,
+      "\026\250\020 Change number of frames skipped per update"),
+    MENU_ITEM("VSync", OPTION_VSYNC, ToggleOptions, -1,
+      "\026\250\020 Enable to reduce tearing; disable to increase speed"),
+    MENU_ITEM("PSP clock frequency", OPTION_CLOCK_FREQ, PspClockFreqOptions, 
+      -1, "\026\250\020 Larger values: faster emulation, faster battery depletion (default: 222MHz)"),
+    MENU_ITEM("Show FPS counter", OPTION_SHOW_FPS, ToggleOptions, -1, 
+      "\026\250\020 Show/hide the frames-per-second counter"),
+    MENU_HEADER("Menu"),
+    MENU_ITEM("Button mode", OPTION_CONTROL_MODE, ControlModeOptions, -1,
+      "\026\250\020 Change OK and Cancel button mapping"),
+    MENU_END_ITEMS
   };
 
 // TODO:
@@ -318,7 +316,6 @@ int         LoadState(const char *path);
 PspImage*   SaveState(const char *path, PspImage *icon);
 
 static void LoadOptions();
-static void InitOptionDefaults();
 static int  SaveOptions();
 
 static int LoadResource(const char *filename);
@@ -441,7 +438,7 @@ void InitMenu()
   SaveStateGallery.Menu = pspMenuCreate();
   for (i = 0; i < 10; i++)
   {
-    item = pspMenuAppendItem(SaveStateGallery.Menu, NULL, (void*)i);
+    item = pspMenuAppendItem(SaveStateGallery.Menu, NULL, i);
     pspMenuSetHelpText(item, EmptySlotText);
   }
 
@@ -702,7 +699,7 @@ int OnGenericButtonPress(const PspUiFileBrowser *browser, const char *path,
   else if ((button_mask & (PSP_CTRL_START | PSP_CTRL_SELECT)) 
     == (PSP_CTRL_START | PSP_CTRL_SELECT))
   {
-    if (CaptureVramBuffer(ScreenshotPath, "ui"))
+    if (pspUtilSaveVramSeq(ScreenshotPath, "ui"))
       pspUiAlert("Saved successfully");
     else
       pspUiAlert("ERROR: Not saved");
@@ -737,25 +734,25 @@ void DisplayMenu()
       break;
     case TAB_OPTION:
       /* Init menu options */
-      item = pspMenuFindItemByUserdata(OptionUiMenu.Menu, (void*)OPTION_DISPLAY_MODE);
+      item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_DISPLAY_MODE);
       pspMenuSelectOptionByValue(item, (void*)DisplayMode);
-      item = pspMenuFindItemByUserdata(OptionUiMenu.Menu, (void*)OPTION_SYNC_FREQ);
-      pspMenuSelectOptionByValue(item, (void*)UpdateFreq);
-      item = pspMenuFindItemByUserdata(OptionUiMenu.Menu, (void*)OPTION_FRAMESKIP);
+      item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_FRAME_LIMITER);
+      pspMenuSelectOptionByValue(item, (void*)FrameLimiter);
+      item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_FRAMESKIP);
       pspMenuSelectOptionByValue(item, (void*)(int)Frameskip);
-      item = pspMenuFindItemByUserdata(OptionUiMenu.Menu, (void*)OPTION_VSYNC);
+      item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_VSYNC);
       pspMenuSelectOptionByValue(item, (void*)VSync);
-      item = pspMenuFindItemByUserdata(OptionUiMenu.Menu, (void*)OPTION_CLOCK_FREQ);
+      item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_CLOCK_FREQ);
       pspMenuSelectOptionByValue(item, (void*)ClockFreq);
-      item = pspMenuFindItemByUserdata(OptionUiMenu.Menu, (void*)OPTION_SHOW_FPS);
+      item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_SHOW_FPS);
       pspMenuSelectOptionByValue(item, (void*)ShowFps);
-      item = pspMenuFindItemByUserdata(OptionUiMenu.Menu, (void*)OPTION_CONTROL_MODE);
+      item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_CONTROL_MODE);
       pspMenuSelectOptionByValue(item, (void*)ControlMode);
       pspUiOpenMenu(&OptionUiMenu, NULL);
       break;
     case TAB_SYSTEM:
       /* Init system configuration */
-      item = pspMenuFindItemByUserdata(SystemUiMenu.Menu, (void*)SYSTEM_TIMING);
+      item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_TIMING);
       pspMenuSelectOptionByValue(item, (void*)(Mode & CV_PAL));
 
       pspUiOpenMenu(&SystemUiMenu, NULL);
@@ -815,11 +812,11 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item,
 {
   if (uimenu == &ControlUiMenu)
   {
-    GameConfig.ButtonMap[(int)item->Userdata] = (unsigned int)option->Value;
+    GameConfig.ButtonMap[item->ID] = (unsigned int)option->Value;
   }
   else if (uimenu == &SystemUiMenu)
   {
-    switch((int)item->Userdata)
+    switch(item->ID)
     {
     case SYSTEM_TIMING:
       if ((int)option->Value != (Mode & CV_PAL))
@@ -834,13 +831,13 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item,
   }
   else if (uimenu == &OptionUiMenu)
   {
-    switch((int)item->Userdata)
+    switch(item->ID)
     {
     case OPTION_DISPLAY_MODE:
       DisplayMode = (int)option->Value;
       break;
-    case OPTION_SYNC_FREQ:
-      UpdateFreq = (int)option->Value;
+    case OPTION_FRAME_LIMITER:
+      FrameLimiter = (int)option->Value;
       break;
     case OPTION_FRAMESKIP:
       Frameskip = (int)option->Value;
@@ -877,7 +874,7 @@ int OnMenuOk(const void *uimenu, const void* sel_item)
   }
   else if (uimenu == &SystemUiMenu)
   {
-    switch ((int)((const PspMenuItem*)sel_item)->Userdata)
+    switch (((const PspMenuItem*)sel_item)->ID)
     {
     case SYSTEM_RESET:
 
@@ -893,7 +890,7 @@ int OnMenuOk(const void *uimenu, const void* sel_item)
     case SYSTEM_SCRNSHOT:
 
       /* Save screenshot */
-      if (!SaveScreenshot(ScreenshotPath, GetConfigName(), Screen))
+      if (!pspUtilSavePngSeq(ScreenshotPath, GetConfigName(), Screen))
         pspUiAlert("ERROR: Screenshot not saved");
       else
         pspUiAlert("Screenshot saved successfully");
@@ -949,15 +946,15 @@ int OnSaveStateOk(const void *gallery, const void *item)
 
   path = (char*)malloc(strlen(SaveStatePath) + strlen(config_name) + 8);
   sprintf(path, "%s%s_%02i.sta", SaveStatePath, config_name, 
-    (int)((const PspMenuItem*)item)->Userdata);
+    ((const PspMenuItem*)item)->ID);
 
   if (pspFileIoCheckIfExists(path) && pspUiConfirm("Load state?"))
   {
     if (LoadState(path))
     {
       ExitMenu = 1;
-      pspMenuFindItemByUserdata(((const PspUiGallery*)gallery)->Menu, 
-        ((const PspMenuItem*)item)->Userdata);
+      pspMenuFindItemById(((const PspUiGallery*)gallery)->Menu, 
+        ((const PspMenuItem*)item)->ID);
       free(path);
 
       return 1;
@@ -979,13 +976,10 @@ int OnSaveStateButtonPress(const PspUiGallery *gallery,
     char *path;
     char caption[32];
     const char *config_name = GetConfigName();
-    PspMenuItem *item = pspMenuFindItemByUserdata(gallery->Menu, sel->Userdata);
+    PspMenuItem *item = pspMenuFindItemById(gallery->Menu, sel->ID);
 
     path = (char*)malloc(strlen(SaveStatePath) + strlen(config_name) + 8);
-    sprintf(path, "%s%s_%02i.sta", 
-      SaveStatePath, 
-      config_name, 
-      (int)item->Userdata);
+    sprintf(path, "%s%s_%02i.sta", SaveStatePath, config_name, item->ID);
 
     do /* not a real loop; flow control construct */
     {
@@ -1105,10 +1099,7 @@ static void DisplayStateTab()
     /* Initialize icons */
     for (item = SaveStateGallery.Menu->First; item; item = item->Next)
     {
-      sprintf(path, "%s%s_%02i.sta", 
-        SaveStatePath, 
-        config_name, 
-        (int)item->Userdata);
+      sprintf(path, "%s%s_%02i.sta", SaveStatePath, config_name, item->ID);
   
       if (pspFileIoCheckIfExists(path))
       {
@@ -1157,39 +1148,30 @@ static void LoadOptions()
   sprintf(path, "%s%s", pspGetAppDirectory(), OptionsFile);
 
   /* Initialize INI structure */
-  INIFile ini;
-  InitINI(&ini);
+  PspInit *init = pspInitCreate();
 
   /* Read the file */
-  if (!LoadINI(&ini, path))
-  {
-    /* File does not exist; load defaults */
-    TrashINI(&ini);
-    InitOptionDefaults();
-  }
-  else
-  {
-    char path[PSP_FILEIO_MAX_PATH_LEN + 1];
+  pspInitLoad(init, path);
 
-    /* Load values */
-    DisplayMode = INIGetInteger(&ini, "Video", "Display Mode", DISPLAY_MODE_UNSCALED);
-    UpdateFreq = INIGetInteger(&ini, "Video", "Update Frequency", 60);
-    Frameskip = INIGetInteger(&ini, "Video", "Frameskip", 1);
-    VSync = INIGetInteger(&ini, "Video", "VSync", 0);
-    ClockFreq = INIGetInteger(&ini, "Video", "PSP Clock Frequency", 222);
-    ShowFps = INIGetInteger(&ini, "Video", "Show FPS", 0);
-    ControlMode = INIGetInteger(&ini, "Menu", "Control Mode", 0);
+  /* Load values */
+  DisplayMode = pspInitGetInt(init, "Video", "Display Mode", 
+    DISPLAY_MODE_UNSCALED);
+  FrameLimiter = pspInitGetInt(init, "Video", "Frame Limiter", 1);
+  Frameskip = pspInitGetInt(init, "Video", "Frameskip", 0);
+  VSync = pspInitGetInt(init, "Video", "VSync", 0);
+  ClockFreq = pspInitGetInt(init, "Video", "PSP Clock Frequency", 222);
+  ShowFps = pspInitGetInt(init, "Video", "Show FPS", 0);
+  ControlMode = pspInitGetInt(init, "Menu", "Control Mode", 0);
 
-    Mode = (Mode&~CV_PAL) | INIGetInteger(&ini, "System", "Timing", Mode & CV_PAL);
+  Mode = (Mode&~CV_PAL) 
+    | pspInitGetInt(init, "System", "Timing", Mode & CV_PAL);
 
-    if (RomPath) { free(RomPath); RomPath = NULL; }
-    if (INIGetString(&ini, "File", "ROM Path", path, PSP_FILEIO_MAX_PATH_LEN))
-      RomPath = strdup(path);
-  }
+  if (RomPath) free(RomPath);
+  RomPath = pspInitGetString(init, "File", "ROM Path", NULL);
 
   /* Clean up */
   free(path);
-  TrashINI(&ini);
+  pspInitDestroy(init);
 }
 
 /* Save options */
@@ -1199,27 +1181,26 @@ static int SaveOptions()
   sprintf(path, "%s%s", pspGetAppDirectory(), OptionsFile);
 
   /* Initialize INI structure */
-  INIFile ini;
-  InitINI(&ini);
+  PspInit *init = pspInitCreate();
 
   /* Set values */
-  INISetInteger(&ini, "Video", "Display Mode", DisplayMode);
-  INISetInteger(&ini, "Video", "Update Frequency", UpdateFreq);
-  INISetInteger(&ini, "Video", "Frameskip", Frameskip);
-  INISetInteger(&ini, "Video", "VSync", VSync);
-  INISetInteger(&ini, "Video", "PSP Clock Frequency", ClockFreq);
-  INISetInteger(&ini, "Video", "Show FPS", ShowFps);
-  INISetInteger(&ini, "Menu", "Control Mode", ControlMode);
+  pspInitSetInt(init, "Video", "Display Mode", DisplayMode);
+  pspInitSetInt(init, "Video", "Frame Limiter", FrameLimiter);
+  pspInitSetInt(init, "Video", "Frameskip", Frameskip);
+  pspInitSetInt(init, "Video", "VSync", VSync);
+  pspInitSetInt(init, "Video", "PSP Clock Frequency", ClockFreq);
+  pspInitSetInt(init, "Video", "Show FPS", ShowFps);
+  pspInitSetInt(init, "Menu", "Control Mode", ControlMode);
 
-  INISetInteger(&ini, "System", "Timing", Mode & CV_PAL);
+  pspInitSetInt(init, "System", "Timing", Mode & CV_PAL);
 
-  if (RomPath) INISetString(&ini, "File", "ROM Path", RomPath);
+  if (RomPath) pspInitSetString(init, "File", "ROM Path", RomPath);
 
   /* Save INI file */
-  int status = SaveINI(&ini, path);
+  int status = pspInitSave(init, path);
 
   /* Clean up */
-  TrashINI(&ini);
+  pspInitDestroy(init);
   free(path);
 
   return status;
@@ -1291,20 +1272,6 @@ PspImage* SaveState(const char *path, PspImage *icon)
 
   fclose(f);
   return thumb;
-}
-
-/* Initialize options to system defaults */
-static void InitOptionDefaults()
-{
-  ControlMode = 0;
-  DisplayMode = DISPLAY_MODE_UNSCALED;
-  UpdateFreq = 60;
-  Frameskip = 1;
-  VSync = 0;
-  ClockFreq = 222;
-  Quickload = NULL;
-  ShowFps = 0;
-  RomPath = NULL;
 }
 
 /* Gets configuration name */
