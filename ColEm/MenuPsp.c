@@ -217,7 +217,7 @@ static const PspMenuItemDef
       "\026\250\020 Change screen size"),
     MENU_HEADER("Performance"),
     MENU_ITEM("Frame limiter", OPTION_FRAME_LIMITER, ToggleOptions, -1,
-      "\026\250\020 Change screen update frequency"),
+      "\026\250\020 Enable/disable correct FPS emulation"),
     MENU_ITEM("Frame skipping", OPTION_FRAMESKIP, FrameSkipOptions, -1,
       "\026\250\020 Change number of frames skipped per update"),
     MENU_ITEM("VSync", OPTION_VSYNC, ToggleOptions, -1,

@@ -98,6 +98,7 @@
           <li><a href="#news">New Features</a></li>
           <li><a href="#install">Installation</a></li>
           <li><a href="#controls">Controls</a></li>
+          <li><a href="#disks">Disk Writing</a></li>
           <li><a href="#multi">Multi-Volume Disk Images</a></li>
           <li><a href="#vk">Virtual Keyboard</a></li>
           <li><a href="#optim">Optimization</a></li>
@@ -111,13 +112,12 @@
 
       <h1 id="news">New Features</h1>
       <div class="section">
-        <h2>Version 3.3.2 (July 24, 2007)</h2>
-
+        <h2>Version 3.3.25 (August 23, 2007)</h2>
         <ul>
-          <li>60% increase in rendering speed--MSX2 titles (including
-              Metal Gear 2) run at 100% speed at 222MHz</li>
-          <li>Fixed buffer overflow error affecting units without 
-              a battery (thanks to Alpha Beta for tracking it down)</li>
+          <li>This update adds the ability to write changes to (uncompressed)
+              disk images (see <a href="#disks">Disk Writing</a> for 
+              details and warnings)</li>
+          <li></i>
         </ul>
       </div>
 
@@ -193,6 +193,30 @@
           (triangle).</p>
       </div>
 
+      <h1 id="disks">Disk Writing</h1>
+      <div class="section">
+          <p>Versions of fMSX prior to 3.3 mapped MSX disk sectors
+          to the file containing the disk image, and reads/writes to the MSX
+          disk were implemented as reads/writes to the image on the storage
+          device (in this case, the memory stick).</p>
+          <p>Version 3.3 of fMSX includes a much more faithful emulation of
+          the floppy disk controller, which no longer involves direct writing
+          to the storage device - the disk image is loaded into memory instead. 
+          Versions 3.3.1 and 3.3.2 of fMSX stopped automatically writing the 
+          changes to disk - starting with 3.3.25, disk changes need to be 
+          explicitly committed to memory stick. This can either be done by
+          loading a new disk in the same slot via the System tab (not the Game 
+          tab), or by 
+          ejecting the disk. Either way, you will be asked if you want to commit
+          the changes to the image before ejecting or loading another 
+          image.</p>
+          <p><b>NOTE</b> This only applies to uncompressed disk images - 
+          ZIP compressed files cannot be updated.</p>
+          <p><b>WARNING</b> Before committing changes to storage, make sure
+          the MSX floppy drive is not in use - otherwise, you may damage
+          the disk image.</p>
+      </div>
+
       <h1 id="multi">Multi-Volume Disk Images</h1>
       <div class="section">
         <p>fMSX PSP can load multi-volume games (like Snatcher) from a single 
@@ -216,6 +240,9 @@
         <p>Note that multi-volume files do not have to be ZIP-compressed for the 
           'volume switch' feature to work - volume switching will also work for 
           uncompressed DSK files, as long as they're named as described above.</p>
+
+        <p><b>NOTE</b> Changes to the disk image will not be saved when using
+          this feature.</p>
       </div>
 
       <h1 id="vk">Virtual Keyboard</h1>
@@ -292,6 +319,14 @@
 
       <h1 id="hist">Version History</h1>
       <div class="section">
+        <h2>Version 3.3.2 (July 24, 2007)</h2>
+        <ul>
+          <li>60% increase in rendering speed--MSX2 titles (including
+              Metal Gear 2) run at 100% speed at 222MHz</li>
+          <li>Fixed buffer overflow error affecting units without 
+              a battery (thanks to Alpha Beta for tracking it down)</li>
+        </ul>
+
         <h2>Version 3.3.1 (June 17, 2007)</h2>
         <ul>
           <li>Virtual keyboard improvements. The virtual keyboard now requires 

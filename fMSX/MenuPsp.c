@@ -451,7 +451,7 @@ static const PspMenuItemDef
       "\026\250\020 Change screen size"),
     MENU_HEADER("Performance"),
     MENU_ITEM("Frame limiter", OPTION_FRAME_LIMITER, ToggleOptions, -1,
-      "\026\250\020 Change screen update frequency"),
+      "\026\250\020 Enable/disable correct FPS emulation"),
     MENU_ITEM("Frame skipping", OPTION_FRAMESKIP, FrameSkipOptions, -1,
       "\026\250\020 Change number of frames skipped per update"),
     MENU_ITEM("VSync", OPTION_VSYNC, ToggleOptions, -1,
@@ -726,13 +726,13 @@ void OnSplashRender(const void *splash, const void *null)
   OnGenericRender(splash, null);
 }
 
-int  OnSplashButtonPress(const struct PspUiSplash *splash, 
+int OnSplashButtonPress(const struct PspUiSplash *splash, 
   u32 button_mask)
 {
   return OnGenericButtonPress(NULL, NULL, button_mask);
 }
 
-int  OnMenuItemChanged(const struct PspUiMenu *uimenu, 
+int OnMenuItemChanged(const struct PspUiMenu *uimenu, 
   PspMenuItem* item, 
   const PspMenuOption* option)
 {
@@ -888,11 +888,37 @@ int OnMenuOk(const void *uimenu, const void* sel_item)
     case SYSTEM_DRIVE_A:
     case SYSTEM_DRIVE_B:
 
-      /* Load disk */
       slot = opt - SYSTEM_DRIVE_A;
+
+      if (Drive[slot])
+      {
+        /* Test to see if it's a real file or archived name */
+        FILE *file = fopen(Drive[slot], "r");
+        fclose(file);
+
+        /* See if the user wants to save changes to disk */
+        if (file)
+        {
+	        switch (pspUiYesNoCancel("Save changes to the currently loaded disk?"))
+	        {
+	        case PSP_UI_YES: 
+	          pspUiFlashMessage("Saving disk image, please wait...");
+	          SaveFDI(&FDD[slot], Drive[slot], FMT_AUTO);
+	          break;
+	        case PSP_UI_NO:
+	          break;
+	        case PSP_UI_CANCEL:
+	        default:
+	          goto cancel_load;
+	        }
+        }
+      }
+
+      /* Open browser window */
       FileBrowser.Userdata = (void*)slot;
       FileBrowser.Filter = DiskFilter;
       pspUiOpenBrowser(&FileBrowser, DiskPath);
+cancel_load:
       break;
 
     case SYSTEM_RESET:
@@ -989,19 +1015,45 @@ int  OnMenuButtonPress(const struct PspUiMenu *uimenu,
       case SYSTEM_DRIVE_A:
       case SYSTEM_DRIVE_B:
 
-        /* Eject disk */
-        slot = opt-SYSTEM_DRIVE_A;
-        if (Drive[slot]) { free(Drive[slot]); Drive[slot] = NULL; }
-        pspMenuModifyOption(sel_item->Options, EmptySlot, NULL);
-        pspMenuSetHelpText(sel_item, EmptyDeviceText);
+        slot = opt - SYSTEM_DRIVE_A;
+        if (!Drive[slot]) 
+          break;
+        else
+        {
+          /* Test to see if it's a real file or archived name */
+          FILE *file = fopen(Drive[slot], "r");
+          fclose(file);
+
+          /* See if the user wants to save changes to disk */
+          if (file)
+          {
+		        switch (pspUiYesNoCancel("Save changes to disk before ejecting?"))
+		        {
+		        case PSP_UI_YES: 
+	            pspUiFlashMessage("Saving disk image, please wait...");
+		          SaveFDI(&FDD[slot], Drive[slot], FMT_AUTO);
+		          break;
+		        case PSP_UI_NO:
+		          break;
+		        case PSP_UI_CANCEL:
+		        default:
+		          goto cancel_eject;
+		        }
+          }
+        }
 
         /* Eject disk */
+        free(Drive[slot]); 
+        Drive[slot] = NULL;
+        pspMenuModifyOption(sel_item->Options, EmptySlot, NULL);
+        pspMenuSetHelpText(sel_item, EmptyDeviceText);
         ChangeDisk(slot, NULL);
 
         /* Load game configuration */
         if (!LoadGameConfig(GetConfigName(), &GameConfig))
           ; //pspUiAlert("ERROR: Configuration not loaded");
 
+cancel_eject:
         break;
       }
 
