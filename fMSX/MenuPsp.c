@@ -56,6 +56,7 @@
 #define SYSTEM_MODEL       14
 #define SYSTEM_RAMPAGES    15
 #define SYSTEM_VRAMPAGES   16
+#define SYSTEM_SCC         17
 
 #define OPTION_DISPLAY_MODE  1
 #define OPTION_FRAME_LIMITER 2
@@ -67,6 +68,8 @@
 #define OPTION_ANIMATE       8
 
 extern PspImage *Screen;
+
+extern byte SCCDefault[2];
 
 int DisplayMode;
 int FrameLimiter;
@@ -366,6 +369,13 @@ static const PspMenuOptionDef
     MENU_OPTION("\026\242\020 cancels, \026\241\020 confirms (US)", 0),
     MENU_OPTION("\026\241\020 cancels, \026\242\020 confirms (Japan)", 1),
     MENU_END_OPTIONS
+  },
+  SCCOptions[] = {
+    MENU_OPTION("Automatic", 0),
+    MENU_OPTION("Force detection in slot A", 1),
+    MENU_OPTION("Force detection in slot B", 100),
+    MENU_OPTION("Force detection in both slots", 101),
+    MENU_END_OPTIONS
   };
 
 static const char 
@@ -388,11 +398,15 @@ static const PspMenuItemDef
     MENU_HEADER("Drives"),
     MENU_ITEM("Drive A", SYSTEM_DRIVE_A, CartNameOptions, 0, EmptyDeviceText),
     MENU_ITEM("Drive B", SYSTEM_DRIVE_B, CartNameOptions, 0, EmptyDeviceText),
-    MENU_HEADER("Configuration"),
-    MENU_ITEM("System", SYSTEM_MODEL,ModelOptions, -1, 
-      "\026\250\020 Select MSX model"),
-    MENU_ITEM("CPU Timing", SYSTEM_TIMING, TimingOptions, -1,
+    MENU_HEADER("Audio"),
+    MENU_ITEM("SCC detection", SYSTEM_SCC, SCCOptions, 0, 
+    	"\026\250\020 Toggle SCC cartridge detection"),
+    MENU_HEADER("Video"),
+    MENU_ITEM("Video timing", SYSTEM_TIMING, TimingOptions, -1,
       "\026\250\020 Select video timing mode (PAL/NTSC)"),
+    MENU_HEADER("Hardware"),
+    MENU_ITEM("MSX model", SYSTEM_MODEL,ModelOptions, -1, 
+      "\026\250\020 Select MSX model"),
     MENU_ITEM("System RAM", SYSTEM_RAMPAGES, RAMOptions, -1, 
       "\026\250\020 Change amount of system memory"),
     MENU_ITEM("System VRAM", SYSTEM_VRAMPAGES, VRAMOptions, -1, 
@@ -856,6 +870,10 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu,
     		}
       }
       break;
+    case SYSTEM_SCC:
+    	SCCDefault[0] = (int)option->Value & 0xFF;
+    	SCCDefault[1] = ((int)option->Value >> 8) & 0xFF;
+    	break;
     }
   }
 
@@ -1125,6 +1143,10 @@ static void LoadOptions()
   RAMPages = pspInitGetInt(init, "System", "RAM Pages", RAMPages);
   VRAMPages = pspInitGetInt(init, "System", "VRAM Pages", VRAMPages);
 
+  int scc = pspInitGetInt(init, "System", "SCC Audio", 1);
+  SCCDefault[0] = scc & 0xFF;
+  SCCDefault[1] = (scc >> 8) & 0xFF;
+
   if (DiskPath) free(DiskPath);
   if (CartPath) free(CartPath); 
   if (Quickload) free(Quickload);
@@ -1161,6 +1183,7 @@ static int SaveOptions()
   pspInitSetInt(init, "System", "Model", Mode & MSX_MODEL);
   pspInitSetInt(init, "System", "RAM Pages", RAMPages);
   pspInitSetInt(init, "System", "VRAM Pages", VRAMPages);
+  pspInitSetInt(init, "System", "SCC Audio", SCCDefault[0] | (SCCDefault[1] << 8));
 
   if (Quickload)
   {
@@ -1214,6 +1237,8 @@ void DisplayMenu()
       pspMenuSelectOptionByValue(item, (void*)RAMPages);
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_VRAMPAGES);
       pspMenuSelectOptionByValue(item, (void*)VRAMPages);
+      item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_SCC);
+      pspMenuSelectOptionByValue(item, (void*)(SCCDefault[0]|(SCCDefault[1]<<8)));
 
       pspUiOpenMenu(&SystemUiMenu, NULL);
       break;

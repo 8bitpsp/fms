@@ -80,12 +80,12 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   P=(pixel *)Screen->Pixels;
 
   /* Paint top of the screen */
-  S=Screen->Width-WIDTH;
+  S=Screen->Width-Screen->Viewport.Width;
   if(!Y)
   {
     for(I=0,H=0;I<FirstLine;I++)
     {
-      for(J=0;J<WIDTH;J++,H++) P[H]=C;
+      for(J=0;J<Screen->Viewport.Width;J++,H++) P[H]=C;
       H+=S;
     }
   }
@@ -94,9 +94,10 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   P+=Screen->Width*(FirstLine+Y);
 
   /* Paint left/right borders */
-  E=(WIDTH-256)>>1;
+//  E=(Screen->Viewport.Width-256)>>1;
+  E=8;
   for(H=E+HAdjust;H>0;H--) P[H-1]=C;
-  for(H=E-HAdjust;H>0;H--) P[WIDTH-H]=C;
+  for(H=E-HAdjust;H>0;H--) P[Screen->Viewport.Width-H]=C;
 
   /* Paint bottom of the screen */
   H=ScanLines212? 212:192;
@@ -104,7 +105,7 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   {
     for(I=FirstLine,H=Screen->Width;I>0;I--)
     {
-      for(J=0;J<WIDTH;J++,H++) P[H]=C;
+      for(J=0;J<Screen->Viewport.Width;J++,H++) P[H]=C;
       H+=S;
     }
   }
