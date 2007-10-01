@@ -21,6 +21,8 @@
 
 typedef unsigned char byte;
 
+int FindPowerOfTwoLargerThan(int n);
+
 /* Creates an image in memory */
 PspImage* pspImageCreate(int width, int height, int bpp)
 {
@@ -111,6 +113,14 @@ PspImage* pspImageCreateVram(int width, int height, int bpp)
   return image;
 }
 
+PspImage* pspImageCreateOptimized(int width, int height, int bpp)
+{
+  PspImage *image = pspImageCreate(FindPowerOfTwoLargerThan(width), height, bpp);
+  if (image) image->Viewport.Width = width;
+
+  return image;
+}
+
 /* Destroys image */
 void pspImageDestroy(PspImage *image)
 {
@@ -144,6 +154,64 @@ PspImage* pspImageCreateThumbnail(const PspImage *image)
     memcpy(thumb->Palette, image->Palette, sizeof(image->Palette));
 
   return thumb;
+}
+
+int pspImageDiscardColors(const PspImage *original)
+{
+  if (original->Depth != PSP_IMAGE_16BPP) return 0;
+
+  int y, x, gray;
+  unsigned short *p;
+
+  for (y = 0, p = (unsigned short*)original->Pixels; y < original->Height; y++)
+    for (x = 0; x < original->Width; x++, p++)
+    {
+      gray = (RED(*p) * 3 + GREEN(*p) * 4 + BLUE(*p) * 2) / 9;
+      *p = RGB(gray, gray, gray);
+    }
+
+  return 1;
+}
+
+int pspImageBlur(const PspImage *original, PspImage *blurred)
+{
+  if (original->Width != blurred->Width
+    || original->Height != blurred->Height
+    || original->Depth != blurred->Depth
+    || original->Depth != PSP_IMAGE_16BPP) return 0;
+
+  int r, g, b, n, i, y, x, dy, dx;
+  unsigned short p;
+
+  for (y = 0, i = 0; y < original->Height; y++)
+  {
+    for (x = 0; x < original->Width; x++, i++)
+    {
+      r = g = b = n = 0;
+      for (dy = y - 1; dy <= y + 1; dy++)
+      {
+        if (dy < 0 || dy >= original->Height) continue;
+
+        for (dx = x - 1; dx <= x + 1; dx++)
+        {
+          if (dx < 0 || dx >= original->Width) continue;
+
+          p = ((unsigned short*)original->Pixels)[dx + dy * original->Width];
+          r += RED(p);
+          g += GREEN(p);
+          b += BLUE(p);
+          n++;
+        }
+
+        r /= n;
+        g /= n;
+        b /= n;
+        ((unsigned short*)blurred->Pixels)[i] = RGB(r, g, b);
+      }
+    }
+  }
+
+  return 1;
 }
 
 /* Creates an exact copy of the image */
@@ -244,11 +312,14 @@ PspImage* pspImageLoadPngFd(FILE *fp)
 
   PspImage *image;
 
-  if (!(image = pspImageCreate(width, height, PSP_IMAGE_16BPP)))
+  int mod_width = FindPowerOfTwoLargerThan(width);
+  if (!(image = pspImageCreate(mod_width, height, PSP_IMAGE_16BPP)))
   {
     png_destroy_read_struct(&pPngStruct, &pPngInfo, NULL);
     return 0;
   }
+
+  image->Viewport.Width = width;
 
   png_byte **pRowTable = pPngInfo->row_pointers;
   unsigned int x, y;
@@ -258,6 +329,7 @@ PspImage* pspImageLoadPngFd(FILE *fp)
   for (y=0; y<height; y++)
   {
     png_byte *pRow = pRowTable[y];
+
     for (x=0; x<width; x++)
     {
       switch(color_type)
@@ -286,8 +358,10 @@ PspImage* pspImageLoadPngFd(FILE *fp)
           break;
       }
 
-      *out++=RGB(r,g,b);
+      *out++ = RGB(r,g,b);
     }
+
+    out += (mod_width - width);
   }
 
   png_destroy_read_struct(&pPngStruct, &pPngInfo, NULL);
@@ -399,3 +473,11 @@ int pspImageSavePngFd(FILE *fp, const PspImage* image)
 
   return 1;
 }
+
+int FindPowerOfTwoLargerThan(int n)
+{
+  int i;
+  for (i = n; i < n; i *= 2);
+  return i;
+}
+

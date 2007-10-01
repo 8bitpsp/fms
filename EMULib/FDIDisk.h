@@ -25,6 +25,8 @@ extern "C" {
 #define FMT_SCL    5
 #define FMT_HOBETA 6
 #define FMT_DSK    7
+#define FMT_CPCDSK 8
+#define FMT_SF7000 9
 
 #define DataFDI(D) ((D)->Data+(D)->Data[10]+((int)((D)->Data[11])<<8))
 

@@ -53,7 +53,7 @@ static struct
   int Note;
   int Pitch;
   int Level;
-} CH[MIDI_CHANNELS] =
+} MidiCH[MIDI_CHANNELS] =
 {
   { -1,-1,-1,-1 },
   { -1,-1,-1,-1 },
@@ -73,12 +73,33 @@ static struct
   { -1,-1,-1,-1 }
 };
 
-static const char *LogName  = 0;
-static int  Logging   = MIDI_OFF;
-static int  TickCount = 0;
-static int  LastMsg   = -1;
-static int  DrumOn    = 0;
-static FILE *MIDIOut  = 0;
+static struct
+{
+  int Type;                       /* Channel type (SND_*)             */
+  int Freq;                       /* Channel frequency (Hz)           */
+  int Volume;                     /* Channel volume (0..255)          */
+
+  const signed char *Data;        /* Wave data (-128..127 each)       */
+  int Length;                     /* Wave length in Data              */
+  int Rate;                       /* Wave playback rate (or 0Hz)      */
+  int Pos;                        /* Wave current position in Data    */  
+
+  int Count;                      /* Phase counter                    */
+} WaveCH[SND_CHANNELS];
+
+/** RenderAudio() Variables *******************************************/
+static int SndRate      = 0;      /* Sound rate (1=Adlib, 0=Off)      */
+static int NoiseGen     = 1;      /* Noise generator seed             */
+//int MasterSwitch = 0xFFFF;        /* Switches to turn channels on/off */
+//int MasterVolume = 192;           /* Master volume                    */
+
+/** MIDI Logging Variables ********************************************/
+static const char *LogName = 0;   /* MIDI logging file name           */
+static int  Logging   = MIDI_OFF; /* MIDI logging state (MIDI_*)      */
+static int  TickCount = 0;        /* MIDI ticks since WriteDelta()    */
+static int  LastMsg   = -1;       /* Last MIDI message                */
+static int  DrumOn    = 0;        /* 1: MIDI drums are ON             */
+static FILE *MIDIOut  = 0;        /* MIDI logging file handle         */
 
 static void MIDISound(int Channel,int Freq,int Volume);
 static void MIDISetSound(int Channel,int Type);
@@ -102,9 +123,14 @@ static void WriteTempo(int Freq);
 /*************************************************************/
 void Sound(int Channel,int Freq,int Volume)
 {
-  if(Channel<0) return;
+  /* All parameters have to be valid */
+  if((Channel<0)||(Channel>=SND_CHANNELS)) return;
   Freq   = Freq<0? 0:Freq;
   Volume = Volume<0? 0:Volume>255? 255:Volume;
+
+  /* Modify wave channel */ 
+  WaveCH[Channel].Volume = Volume;
+  WaveCH[Channel].Freq   = Freq;
 
   /* Call sound driver if present */
   if(SndDriver.Sound) (*SndDriver.Sound)(Channel,Freq,Volume);
@@ -120,8 +146,10 @@ void Sound(int Channel,int Freq,int Volume)
 /*************************************************************/
 void Drum(int Type,int Force)
 {
+  /* Drum force has to be valid */
   Force = Force<0? 0:Force>255? 255:Force;
 
+  /* Call sound driver if present */
   if(SndDriver.Drum) (*SndDriver.Drum)(Type,Force);
 
   /* Log drum to MIDI file */
@@ -134,8 +162,13 @@ void Drum(int Type,int Force)
 /*************************************************************/
 void SetSound(int Channel,int Type)
 {
-  if(Channel<0) return;
+  /* Channel has to be valid */
+  if((Channel<0)||(Channel>=SND_CHANNELS)) return;
 
+  /* Set wave channel type */
+  WaveCH[Channel].Type = Type;
+
+  /* Call sound driver if present */
   if(SndDriver.SetSound) (*SndDriver.SetSound)(Channel,Type);
 
   /* Log instrument change to MIDI file */
@@ -149,9 +182,15 @@ void SetSound(int Channel,int Type)
 /*************************************************************/
 void SetChannels(int Volume,int Switch)
 {
+  /* Volume has to be valid */
   Volume = Volume<0? 0:Volume>255? 255:Volume;
 
+  /* Call sound driver if present */
   if(SndDriver.SetChannels) (*SndDriver.SetChannels)(Volume,Switch);
+
+  /* Modify wave master settings */ 
+//  MasterVolume = Volume;
+//  MasterSwitch = Switch&((1<<SND_CHANNELS)-1);
 }
 
 /** SetWave() ************************************************/
@@ -162,8 +201,18 @@ void SetChannels(int Volume,int Switch)
 /*************************************************************/
 void SetWave(int Channel,const signed char *Data,int Length,int Rate)
 {
-  if((Channel<0)||(Length<=0)) return;
+  /* Channel and wavefor length have to be valid */
+  if((Channel<0)||(Channel>=SND_CHANNELS)||(Length<=0)) return;
 
+  /* Set wave channel parameters */
+  WaveCH[Channel].Type   = SND_WAVE;
+  WaveCH[Channel].Length = Length;
+  WaveCH[Channel].Rate   = Rate;
+  WaveCH[Channel].Pos    = 0;
+  WaveCH[Channel].Count  = 0;
+  WaveCH[Channel].Data   = Data;
+
+  /* Call sound driver if present */
   if(SndDriver.SetWave) (*SndDriver.SetWave)(Channel,Data,Length,Rate);
 
   /* Log instrument change to MIDI file */
@@ -177,7 +226,17 @@ void SetWave(int Channel,const signed char *Data,int Length,int Rate)
 /*************************************************************/
 const signed char *GetWave(int Channel)
 {
-  return(SndDriver.GetWave? (*SndDriver.GetWave)(Channel):0);
+  /* Channel has to be valid */
+  if((Channel<0)||(Channel>=SND_CHANNELS)) return(0);
+
+  /* If driver present, call it */
+  if(SndDriver.GetWave) return((*SndDriver.GetWave)(Channel));
+
+  /* Return current read position */
+  return(
+    WaveCH[Channel].Rate&&(WaveCH[Channel].Type==SND_WAVE)?
+    WaveCH[Channel].Data+WaveCH[Channel].Pos:0
+  );
 }
 
 /** InitMIDI() ***********************************************/
@@ -274,7 +333,7 @@ int MIDILogging(int Switch)
 
         /* Clear all storage */
         for(J=0;J<MIDI_CHANNELS;J++)
-          CH[J].Note=CH[J].Pitch=CH[J].Level=-1;
+          MidiCH[J].Note=MidiCH[J].Pitch=MidiCH[J].Level=-1;
 
         /* Open new file and write out the header */
         MIDIOut=fopen(LogName,"wb");
@@ -304,10 +363,10 @@ int MIDILogging(int Switch)
 
         /* Write instrument changes */
         for(J=0;J<MIDI_CHANNELS;J++)
-          if((CH[J].Type>=0)&&(CH[J].Type&0x10000))
+          if((MidiCH[J].Type>=0)&&(MidiCH[J].Type&0x10000))
           {
-            I=CH[J].Type&~0x10000;
-            CH[J].Type=-1;
+            I=MidiCH[J].Type&~0x10000;
+            MidiCH[J].Type=-1;
             MIDISetSound(J,I);
           }
       }
@@ -340,13 +399,13 @@ void MIDISound(int Channel,int Freq,int Volume)
   /* Volume must be in range */
   if(Volume<0) Volume=0; else if(Volume>255) Volume=255;
   /* Instrument number must be valid */
-  if(CH[Channel].Type<0) Freq=0;
+  if(MidiCH[Channel].Type<0) Freq=0;
 
   if(!Volume||!Freq) NoteOff(Channel);
   else
   {
     /* SND_TRIANGLE is twice quieter than SND_MELODIC */
-    if(CH[Channel].Type==SND_TRIANGLE) Volume=(Volume+1)/2;
+    if(MidiCH[Channel].Type==SND_TRIANGLE) Volume=(Volume+1)/2;
     /* Compute MIDI note parameters */
     MIDIVolume = (127*Volume+128)/255;
     MIDINote   = Freqs[Freq/3].Note;
@@ -356,10 +415,10 @@ void MIDISound(int Channel,int Freq,int Volume)
     NoteOn(Channel,MIDINote,MIDIVolume);
 
     /* Change pitch */
-    if(CH[Channel].Pitch!=MIDIWheel)
+    if(MidiCH[Channel].Pitch!=MIDIWheel)
     {
       MIDIMessage(0xE0+SHIFT(Channel),MIDIWheel&0x7F,(MIDIWheel>>7)&0x7F);
-      CH[Channel].Pitch=MIDIWheel;
+      MidiCH[Channel].Pitch=MIDIWheel;
     }
   }
 }
@@ -373,13 +432,13 @@ void MIDISetSound(int Channel,int Type)
   if((Channel>=MIDI_CHANNELS-1)||(Channel<0)) return;
 
   /* If instrument changed... */
-  if(CH[Channel].Type!=Type)
+  if(MidiCH[Channel].Type!=Type)
   {
     /* If logging off or file closed, drop out */
-    if(!Logging||!MIDIOut) CH[Channel].Type=Type|0x10000;
+    if(!Logging||!MIDIOut) MidiCH[Channel].Type=Type|0x10000;
     else
     {
-      CH[Channel].Type=Type;
+      MidiCH[Channel].Type=Type;
       if(Type<0) NoteOff(Channel);
       else
       {
@@ -433,12 +492,12 @@ void NoteOn(byte Channel,byte Note,byte Level)
   Note  = Note>0x7F? 0x7F:Note;
   Level = Level>0x7F? 0x7F:Level;
 
-  if((CH[Channel].Note!=Note)||(CH[Channel].Level!=Level))
+  if((MidiCH[Channel].Note!=Note)||(MidiCH[Channel].Level!=Level))
   {
-    if(CH[Channel].Note>=0) NoteOff(Channel);
+    if(MidiCH[Channel].Note>=0) NoteOff(Channel);
     MIDIMessage(0x90+SHIFT(Channel),Note,Level);
-    CH[Channel].Note=Note;
-    CH[Channel].Level=Level;
+    MidiCH[Channel].Note=Note;
+    MidiCH[Channel].Level=Level;
   }
 }
 
@@ -447,10 +506,10 @@ void NoteOn(byte Channel,byte Note,byte Level)
 /*************************************************************/
 void NoteOff(byte Channel)
 {
-  if(CH[Channel].Note>=0)
+  if(MidiCH[Channel].Note>=0)
   {
-    MIDIMessage(0x80+SHIFT(Channel),CH[Channel].Note,127);
-    CH[Channel].Note=-1;
+    MIDIMessage(0x80+SHIFT(Channel),MidiCH[Channel].Note,127);
+    MidiCH[Channel].Note=-1;
   }
 }
 

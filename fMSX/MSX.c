@@ -559,9 +559,8 @@ int StartMSX(int NewMode,int NewRAMPages,int NewVRAMPages)
 
   /* Open stream for a printer */
   if(Verbose)
-    printf("Redirecting printer output to %s...",PrnName? PrnName:"STDOUT");
-  J=ChangePrinter(PrnName);
-  PRINTRESULT(J);
+    printf("Redirecting printer output to %s...OK",PrnName? PrnName:"STDOUT");
+  ChangePrinter(PrnName);
 
   /* Open streams for serial IO */
   if(!ComName) { ComIStream=stdin;ComOStream=stdout; }
@@ -2003,7 +2002,15 @@ void VDPOut(register byte R,register byte V)
 /** Printer() ************************************************/
 /** Send a character to the printer.                        **/
 /*************************************************************/
-void Printer(byte V) { if(PrnStream) fputc(V,PrnStream); }
+void Printer(byte V)
+{
+  if(!PrnStream)
+  {
+    PrnStream = PrnName?   fopen(PrnName,"ab"):0;
+    PrnStream = PrnStream? PrnStream:stdout;
+  }
+  fputc(V,PrnStream);
+}
 
 /** PPIOut() *************************************************/
 /** This function is called on each write to PPI to make    **/
@@ -2449,16 +2456,11 @@ word StateID(void)
 /** file is closed. ChangePrinter(0) redirects output to    **/
 /** stdout. Returns 1 on success, 0 on failure.             **/
 /*************************************************************/
-int ChangePrinter(const char *FileName)
+void ChangePrinter(const char *FileName)
 {
-  /* Close existing output stream */
   if(PrnStream&&(PrnStream!=stdout)) fclose(PrnStream);
-  /* FileName=0 means stdout */
-  if(!FileName) { PrnStream=stdout;return(1); }
-  /* Open new stream for a printer */
-  if(!(PrnStream=fopen(FileName,"ab"))) PrnStream=stdout;
-  /* Done */
-  return(PrnStream!=stdout);
+  PrnName   = FileName;
+  PrnStream = 0;
 }
 
 /** ChangeDisk() *********************************************/
@@ -2510,9 +2512,6 @@ int LoadFile(const char *FileName)
 {
   const char *T;
   int J;
-
-  /* Try loading as a state */
-  if(LoadSTA(FileName)) return(1);
 
   /* Find file extension */
   T = strrchr(FileName,'\\');

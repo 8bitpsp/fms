@@ -39,10 +39,11 @@ INLINE byte RdZ80(word A) { return(ROMPage[A>>13][A&0x1FFF]); }
 
 #ifdef SPECCY
 #define RdZ80 RDZ80
-#define WrZ80 WRZ80
+// @@@ WrZ80() can't be inlined as it contains debugging stuff
+//#define WrZ80 WRZ80
 extern byte *Page[],*ROM;
 INLINE byte RdZ80(word A)        { return(Page[A>>13][A&0x1FFF]); }
-INLINE void WrZ80(word A,byte V) { if(Page[A>>13]<ROM) Page[A>>13][A&0x1FFF]=V; }
+//INLINE void WrZ80(word A,byte V) { if(Page[A>>13]<ROM) Page[A>>13][A&0x1FFF]=V; }
 #endif
 
 #ifdef MG
@@ -487,6 +488,7 @@ void ResetZ80(Z80 *R)
   R->IX.W     = 0x0000;
   R->IY.W     = 0x0000;
   R->I        = 0x00;
+  R->R        = 0x00;
   R->IFF      = 0x00;
   R->ICount   = R->IPeriod;
   R->IRequest = INT_NONE;

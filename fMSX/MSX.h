@@ -25,6 +25,20 @@
 
 #include <stdio.h>
 
+/** INLINE ***************************************************/
+/** C99 standard has "inline", but older compilers've used  **/
+/** __inline for the same purpose.                          **/
+/*************************************************************/
+#ifdef __C99__
+#define INLINE static inline
+#else
+#define INLINE static __inline
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CPU_CLOCK    3580        /* CPU clock frequency, kHz */
 #define VDP_CLOCK    21480       /* VDP clock frequency, kHz */
 
@@ -293,7 +307,7 @@ int LoadSTA(const char *FileName);
 /** file is closed. ChangePrinter(0) redirects output to    **/
 /** stdout. Returns 1 on success, 0 on failure.             **/
 /*************************************************************/
-int ChangePrinter(const char *FileName);
+void ChangePrinter(const char *FileName);
 
 /** ChangeDisk() *********************************************/
 /** Change disk image in a given drive. Closes current disk **/
@@ -373,4 +387,7 @@ void RefreshLine8(byte Y);
 void RefreshLine10(byte Y);
 void RefreshLine12(byte Y);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* MSX_H */

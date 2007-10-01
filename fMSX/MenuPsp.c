@@ -64,6 +64,7 @@
 #define OPTION_CLOCK_FREQ    5
 #define OPTION_SHOW_FPS      6
 #define OPTION_CONTROL_MODE  7
+#define OPTION_ANIMATE       8
 
 extern PspImage *Screen;
 
@@ -463,6 +464,8 @@ static const PspMenuItemDef
     MENU_HEADER("Menu"),
     MENU_ITEM("Button mode", OPTION_CONTROL_MODE, ControlModeOptions, -1,
       "\026\250\020 Change OK and Cancel button mapping"),
+    MENU_ITEM("Animations", OPTION_ANIMATE, ToggleOptions, -1,
+      "\026\250\020 Enable/disable menu animations"),
     MENU_END_ITEMS
   };
 
@@ -630,8 +633,6 @@ void InitMenu()
   UiMetric.ScrollbarColor = PSP_COLOR_GRAY;
   UiMetric.ScrollbarBgColor = 0x44ffffff;
   UiMetric.ScrollbarWidth = 10;
-  UiMetric.DialogBorderColor = PSP_COLOR_GRAY;
-  UiMetric.DialogBgColor = PSP_COLOR_DARKGRAY;
   UiMetric.TextColor = PSP_COLOR_GRAY;
   UiMetric.SelectedColor = PSP_COLOR_GREEN;
   UiMetric.SelectedBgColor = COLOR(0,0,0,0x55);
@@ -762,6 +763,9 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu,
       ControlMode = (int)option->Value;
       UiMetric.OkButton = (!ControlMode) ? PSP_CTRL_CROSS : PSP_CTRL_CIRCLE;
       UiMetric.CancelButton = (!ControlMode) ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
+      break;
+    case OPTION_ANIMATE:
+      UiMetric.Animate = (int)option->Value;
       break;
     }
   }
@@ -1112,6 +1116,7 @@ static void LoadOptions()
   ClockFreq = pspInitGetInt(init, "Video", "PSP Clock Frequency", 222);
   ShowFps = pspInitGetInt(init, "Video", "Show FPS", 0);
   ControlMode = pspInitGetInt(init, "Menu", "Control Mode", 0);
+  UiMetric.Animate = pspInitGetInt(init, "Menu", "Animate", 1);
 
   Mode = (Mode&~MSX_VIDEO) 
     | pspInitGetInt(init, "System", "Timing", Mode & MSX_VIDEO);
@@ -1150,6 +1155,7 @@ static int SaveOptions()
   pspInitSetInt(init, "Video", "PSP Clock Frequency", ClockFreq);
   pspInitSetInt(init, "Video", "Show FPS", ShowFps);
   pspInitSetInt(init, "Menu", "Control Mode", ControlMode);
+  pspInitSetInt(init, "Menu", "Animate", UiMetric.Animate);
 
   pspInitSetInt(init, "System", "Timing", Mode & MSX_VIDEO);
   pspInitSetInt(init, "System", "Model", Mode & MSX_MODEL);
@@ -1230,6 +1236,8 @@ void DisplayMenu()
       pspMenuSelectOptionByValue(item, (void*)ShowFps);
       item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_CONTROL_MODE);
       pspMenuSelectOptionByValue(item, (void*)ControlMode);
+      item = pspMenuFindItemById(OptionUiMenu.Menu, OPTION_ANIMATE);
+      pspMenuSelectOptionByValue(item, (void*)UiMetric.Animate);
 
       pspUiOpenMenu(&OptionUiMenu, NULL);
       break;
@@ -1322,12 +1330,8 @@ static int SaveGameConfig(const char *filename, const struct GameConfig *config)
 /* Handles drawing of generic items */
 void OnGenericRender(const void *uiobject, const void *item_obj)
 {
-  static char status[128];
-  pspUiGetStatusString(status, sizeof(status));
-
   int height = pspFontGetLineHeight(UiMetric.Font);
-  int width = pspFontGetTextWidth(UiMetric.Font, status);
-  pspVideoPrint(UiMetric.Font, SCR_WIDTH - width, 0, status, PSP_COLOR_WHITE);
+  int width;
 
   /* Draw tabs */
   int i, x;

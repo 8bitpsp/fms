@@ -13,16 +13,6 @@
 /**     changes to this file.                               **/
 /*************************************************************/
 
-/** INLINE ***************************************************/
-/** Different compilers inline C functions differently.     **/
-/*************************************************************/
-#ifdef __GNUC__
-#define INLINE inline
-#else
-
-#define INLINE
-#endif
-
 static int FirstLine = 18;     /* First scanline in the XBuf */
 
 static void  Sprites(byte Y,pixel *Line);
@@ -51,7 +41,7 @@ static void ClearLine(register pixel *P,register pixel C)
 /** Given a color in YJK format, return the corresponding   **/
 /** palette entry.                                          **/
 /*************************************************************/
-static INLINE pixel YJKColor(register int Y,register int J,register int K)
+INLINE pixel YJKColor(register int Y,register int J,register int K)
 {
   register int R,G,B;
 		

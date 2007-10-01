@@ -13,6 +13,10 @@
 #ifndef Z80_H
 #define Z80_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
                                /* Compilation options:       */
 /* #define DEBUG */            /* Compile debugging version  */
 /* #define LSB_FIRST */        /* Compile for low-endian CPU */
@@ -178,4 +182,7 @@ word LoopZ80(register Z80 *R);
 void JumpZ80(word PC);
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* Z80_H */

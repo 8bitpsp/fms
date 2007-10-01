@@ -45,9 +45,12 @@ typedef struct
   unsigned short __attribute__((aligned(16))) Palette[256];
 } PspImage;
 
+/* Create/destroy */
 PspImage* pspImageCreate(int width, int height, int bits_per_pixel);
 PspImage* pspImageCreateVram(int width, int height, int bits_per_pixel);
+PspImage* pspImageCreateOptimized(int width, int height, int bpp);
 void      pspImageDestroy(PspImage *image);
+
 PspImage* pspImageCreateThumbnail(const PspImage *image);
 PspImage* pspImageCreateCopy(const PspImage *image);
 void      pspImageClear(PspImage *image, unsigned int color);
@@ -56,6 +59,9 @@ PspImage* pspImageLoadPng(const char *path);
 int       pspImageSavePng(const char *path, const PspImage* image);
 PspImage* pspImageLoadPngFd(FILE *fp);
 int       pspImageSavePngFd(FILE *fp, const PspImage* image);
+
+int pspImageBlur(const PspImage *original, PspImage *blurred);
+int pspImageDiscardColors(const PspImage *original);
 
 #ifdef __cplusplus
 }

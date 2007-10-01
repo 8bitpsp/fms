@@ -13,11 +13,12 @@
 /*************************************************************/
 #ifndef WD1793_H
 #define WD1793_H
+
+#include "FDIDisk.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "FDIDisk.h"
 
 #define WD1793_KEEP    0
 #define WD1793_INIT    1
@@ -105,7 +106,7 @@ typedef struct
 void Reset1793(register WD1793 *D,FDIDisk *Disks,register byte Eject);
 
 /** Read1793() ***********************************************/
-/** Write value from a WD1793 register A. Returns read data **/
+/** Read value from a WD1793 register A. Returns read data  **/
 /** on success or 0xFF on failure (bad register address).   **/
 /*************************************************************/
 byte Read1793(register WD1793 *D,register byte A);

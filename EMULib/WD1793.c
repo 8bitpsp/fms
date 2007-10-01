@@ -50,7 +50,7 @@ void Reset1793(register WD1793 *D,FDIDisk *Disks,register byte Eject)
 }
 
 /** Read1793() ***********************************************/
-/** Write value from a WD1793 register A. Returns read data **/
+/** Read value from a WD1793 register A. Returns read data  **/
 /** on success or 0xFF on failure (bad register address).   **/
 /*************************************************************/
 byte Read1793(register WD1793 *D,register byte A)
@@ -178,10 +178,11 @@ byte Write1793(register WD1793 *D,register byte A,register byte V)
           );
           /* Either store or fetch step direction */
           if(V&0x40) D->LastS=V&0x20; else V=(V&~0x20)|D->LastS;
-          /* Step the head */
-          D->Track[D->Drive]+=V&0x20? -1:1;
+          /* Step the head, update track register if requested */
+          if(V&0x20) { if(D->Track[D->Drive]) --D->Track[D->Drive]; }
+          else ++D->Track[D->Drive];
           /* Update track register if requested */
-          if(V&C_SETTRACK) D->R[1]=V&0x20? -1:1;
+          if(V&C_SETTRACK) D->R[1]=D->Track[D->Drive];
           /* Update status register */
           D->R[0] = F_INDEX|(D->Track[D->Drive]? 0:F_TRACK0);
 // @@@ WHY USING J HERE?
@@ -245,10 +246,15 @@ byte Write1793(register WD1793 *D,register byte A,register byte V)
           /* Read first sector address from the track */
           if(!D->Disk[D->Drive]) D->Ptr=0;
           else
-          {
             for(J=0;J<256;++J)
-              if(D->Ptr=SeekFDI(D->Disk[D->Drive],D->Side,D->Track[D->Drive],D->Side,D->Track[D->Drive],J)) break;
-          }
+            {
+              D->Ptr=SeekFDI(
+                D->Disk[D->Drive],
+                D->Side,D->Track[D->Drive],
+                D->Side,D->Track[D->Drive],J
+              );
+              if(D->Ptr) break;
+            }
           /* If address found, initiate data transfer */
           if(!D->Ptr)
           {
@@ -267,11 +273,15 @@ byte Write1793(register WD1793 *D,register byte A,register byte V)
           break;
 
         case 0xE0: /* READ-TRACK */
-          if(D->Verbose) printf("WD1793: READ-TRACK %d (%02Xh)\n",D->R[1],V);
+          if(D->Verbose) printf("WD1793: READ-TRACK %d (%02Xh) UNSUPPORTED!\n",D->R[1],V);
           break;
 
         case 0xF0: /* WRITE-TRACK */
-          if(D->Verbose) printf("WD1793: WRITE-TRACK %d (%02Xh)\n",D->R[1],V);
+          if(D->Verbose) printf("WD1793: WRITE-TRACK %d (%02Xh) UNSUPPORTED!\n",D->R[1],V);
+          break;
+
+        default: /* UNKNOWN */
+          if(D->Verbose) printf("WD1793: UNSUPPORTED OPERATION %02Xh!\n",V);
           break;
       }
       break;
