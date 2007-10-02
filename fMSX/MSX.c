@@ -162,7 +162,6 @@ AY8910 PSG;                        /* PSG registers & state  */
 YM2413 OPLL;                       /* OPLL registers & state */
 SCC  SCChip;                       /* SCC registers & state  */
 byte SCCOn[2];                     /* 1 = SCC page active    */
-byte SCCDefault[2];                /* Default SCC status     */
 word FMPACKey;                     /* MAGIC = SRAM active    */
 
 /** Serial I/O hardware: i8251+i8253 *************************/
@@ -419,9 +418,6 @@ int StartMSX(int NewMode,int NewRAMPages,int NewVRAMPages)
   FMPACKey    = 0x0000;
   ExitNow     = 0;
   NChunks     = 0;
-
-  SCCDefault[0] = 0;
-  SCCDefault[1] = 0;
 
   /* Zero cartridge related data */
   for(J=0;J<MAXSLOTS;++J)
@@ -989,8 +985,7 @@ int ResetMSX(int NewMode,int NewRAMPages,int NewVRAMPages)
     MouState[J]=MouseDX[J]=MouseDY[J]=OldMouseX[J]=OldMouseY[J]=MCount[J]=0;
 
   IRQPending=0x00;                      /* No IRQs pending  */
-  SCCOn[0]=SCCDefault[0];               /* Reset SCC to default status */
-  SCCOn[1]=SCCDefault[1];
+  SCCOn[0]=SCCOn[1]=0;                  /* SCCs off for now */
   RTCReg=RTCMode=0;                     /* Clock registers  */
   KanCount=0;KanLetter=0;               /* Kanji extension  */
   ChrTab=ColTab=ChrGen=VRAM;            /* VDP tables       */
@@ -1520,7 +1515,7 @@ printf("(%04Xh) = %02Xh at PC=%04Xh\n",A,V,CPU.PC.W);
 #endif
 
   /* SCC: enable/disable for no cart */
-  if(!ROMData[I]&&(A==0x9000)) SCCOn[I]=(V==0x3F)? 1:SCCDefault[I];
+  if(!ROMData[I]&&(A==0x9000)) SCCOn[I]=(V==0x3F)? 1:0;
 
   /* SCC: types 0, 2, or no cart */
   if(((A&0xFF00)==0x9800)&&SCCOn[I])
@@ -1564,7 +1559,7 @@ printf("(%04Xh) = %02Xh at PC=%04Xh\n",A,V,CPU.PC.W);
       if((A<0x4000)||(A>0xBFFF)) break;
       J=(A-0x4000)>>13;
       /* Turn SCC on/off on writes to 8000h-9FFFh */
-      if(J==2) SCCOn[I]=(V==0x3F)? 1:SCCDefault[I];
+      if(J==2) SCCOn[I]=(V==0x3F)? 1:0;
       /* Switch ROM pages */
       V&=ROMMask[I];
       if(V!=ROMMapper[I][J])
@@ -1597,7 +1592,7 @@ printf("(%04Xh) = %02Xh at PC=%04Xh\n",A,V,CPU.PC.W);
       if((A<0x5000)||(A>0xB000)||((A&0x1FFF)!=0x1000)) break;
       J=(A-0x5000)>>13;
       /* Turn SCC on/off on writes to 9000h */
-      if(J==2) SCCOn[I]=(V==0x3F)? 1:SCCDefault[I];
+      if(J==2) SCCOn[I]=(V==0x3F)? 1:0;
       /* Switch ROM pages */
       V&=ROMMask[I];
       if(V!=ROMMapper[I][J])
