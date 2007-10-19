@@ -493,8 +493,6 @@ void InitMenu()
   UiMetric.MenuOptionBoxBg = COLOR(0x90,0x90,0x90,0xd0);
   UiMetric.MenuDecorColor = COLOR(0xc0,0xc0,0xc0,0xff);
   UiMetric.DialogFogColor = COLOR(0,0,0,88);
-  UiMetric.DialogBorderColor = PSP_COLOR_WHITE;
-  UiMetric.DialogBgColor = PSP_COLOR_GRAY;
   UiMetric.TitlePadding = 4;
   UiMetric.TitleColor = PSP_COLOR_YELLOW;
   UiMetric.MenuFps = 30;
@@ -778,12 +776,8 @@ void DisplayMenu()
 /* Handles drawing of generic items */
 void OnGenericRender(const void *uiobject, const void *item_obj)
 {
-  static char status[128];
-  pspUiGetStatusString(status, sizeof(status));
-
   int height = pspFontGetLineHeight(UiMetric.Font);
-  int width = pspFontGetTextWidth(UiMetric.Font, status);
-  pspVideoPrint(UiMetric.Font, SCR_WIDTH - width, 0, status, PSP_COLOR_WHITE);
+  int width;
 
   /* Draw tabs */
   int i, x;
@@ -1162,6 +1156,7 @@ static void LoadOptions()
   ClockFreq = pspInitGetInt(init, "Video", "PSP Clock Frequency", 222);
   ShowFps = pspInitGetInt(init, "Video", "Show FPS", 0);
   ControlMode = pspInitGetInt(init, "Menu", "Control Mode", 0);
+  UiMetric.Animate = pspInitGetInt(init, "Menu", "Animate", 1);
 
   Mode = (Mode&~CV_PAL) 
     | pspInitGetInt(init, "System", "Timing", Mode & CV_PAL);
@@ -1191,6 +1186,7 @@ static int SaveOptions()
   pspInitSetInt(init, "Video", "PSP Clock Frequency", ClockFreq);
   pspInitSetInt(init, "Video", "Show FPS", ShowFps);
   pspInitSetInt(init, "Menu", "Control Mode", ControlMode);
+  pspInitSetInt(init, "Menu", "Animate", UiMetric.Animate);
 
   pspInitSetInt(init, "System", "Timing", Mode & CV_PAL);
 

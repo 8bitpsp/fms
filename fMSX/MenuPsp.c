@@ -602,7 +602,7 @@ void InitMenu()
 
   /* Init NoSaveState icon image */
   NoSaveIcon=pspImageCreate(136, 114, PSP_IMAGE_16BPP);
-  pspImageClear(NoSaveIcon, RGB(66,66,66));
+  pspImageClear(NoSaveIcon, RGB(0x00,0x00,0x55));
 
   /* Initialize state menu */
   SaveStateGallery.Menu = pspMenuCreate();
@@ -634,7 +634,7 @@ void InitMenu()
   UiMetric.ScrollbarBgColor = 0x44ffffff;
   UiMetric.ScrollbarWidth = 10;
   UiMetric.TextColor = PSP_COLOR_GRAY;
-  UiMetric.SelectedColor = PSP_COLOR_GREEN;
+  UiMetric.SelectedColor = COLOR(0xaa,0xaa,0xff,0xff);
   UiMetric.SelectedBgColor = COLOR(0,0,0,0x55);
   UiMetric.StatusBarColor = PSP_COLOR_WHITE;
   UiMetric.BrowserFileColor = PSP_COLOR_GRAY;
@@ -645,12 +645,12 @@ void InitMenu()
   UiMetric.MenuSelOptionBg = PSP_COLOR_BLACK;
   UiMetric.MenuOptionBoxColor = PSP_COLOR_GRAY;
   UiMetric.MenuOptionBoxBg = COLOR(0, 0, 0, 0xBB);
-  UiMetric.MenuDecorColor = PSP_COLOR_YELLOW;
+  UiMetric.MenuDecorColor = UiMetric.SelectedColor;
   UiMetric.DialogFogColor = COLOR(0, 0, 0, 88);
   UiMetric.TitlePadding = 4;
   UiMetric.TitleColor = PSP_COLOR_WHITE;
   UiMetric.MenuFps = 30;
-  UiMetric.TabBgColor = 0xff959595;
+  UiMetric.TabBgColor = COLOR(0xca,0xca,0xff,0xff);
 }
 
 int OnQuickloadOk(const void *browser, const void *path)

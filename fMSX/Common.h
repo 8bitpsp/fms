@@ -742,25 +742,27 @@ void RefreshLineTx80(register byte Y)
   if(!ScreenON) ClearLine(P,BC);
   else
   {
-    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=P[7]=P[8]=BC;
+    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=P[7]=P[8]=
+    P[9]=P[10]=P[11]=P[12]=P[13]=P[14]=P[15]=P[16]=P[17]=BC;
     G=(FontBuf&&(Mode&MSX_FIXEDFONT)? FontBuf:ChrGen)+((Y+VScroll)&0x07);
     T=ChrTab+((80*(Y>>3))&ChrTabM);
     C=ColTab+((10*(Y>>3))&ColTabM);
-    P+=9;
+    P+=18;
 
-    for(X=0,M=0x00;X<80;X++,T++,P+=3)
+    for(X=0,M=0x00;X<80;X++,T++,P+=6)
     {
       if(!(X&0x07)) M=*C++;
       if(M&0x80) { FC=XPal[XFGColor];BC=XPal[XBGColor]; }
       else       { FC=XPal[FGColor];BC=XPal[BGColor]; }
       M<<=1;
       Y=*(G+((int)*T<<3));
-      P[0]=Y&0xC0? FC:BC;
-      P[1]=Y&0x30? FC:BC;
-      P[2]=Y&0x0C? FC:BC;
+      P[0]=Y&0x80? FC:BC;P[1]=Y&0x40? FC:BC;
+      P[2]=Y&0x20? FC:BC;P[3]=Y&0x10? FC:BC;
+      P[4]=Y&0x08? FC:BC;P[5]=Y&0x04? FC:BC;
     }
 
-    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=XPal[BGColor];
+    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=
+    P[7]=P[8]=P[9]=P[10]=P[11]=P[12]=P[13]=XPal[BGColor];
   }
 }
 
