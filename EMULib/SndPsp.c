@@ -75,8 +75,8 @@ static FM_OPL *fm_opl;
 static PSG    *psg;
 static SCC    *scc;
 
-const int Use2413 = 0;     /* MSX-MUSIC emulation (1=enable)  */
-const int Use8950 = 0;     /* MSX-AUDIO emulation (1=enable)  */
+int Use2413 = 0;     /* MSX-MUSIC emulation (1=enable)  */
+int Use8950 = 0;     /* MSX-AUDIO emulation (1=enable)  */
 
 float FactorPSG  = 3.00;  /* Volume percentage of PSG        */
 float FactorSCC  = 3.00;  /* Volume percentage of SCC        */
@@ -303,7 +303,7 @@ unsigned int RenderAudio(unsigned int Samples)
 /*************************************************************/
 void AudioCallback(void* buf, unsigned int *length, void *userdata)
 {
-  PspSample *OutBuf = (PspSample*)buf;
+  PspMonoSample *OutBuf = (PspMonoSample*)buf;
 
 #if defined(FMSX) && defined(ALTSOUND)
   register int   J,R;
@@ -317,7 +317,7 @@ void AudioCallback(void* buf, unsigned int *length, void *userdata)
     A=Use8950? Y8950UpdateOne(fm_opl): 0;
     R=P*FactorPSG+O*Factor2413+A*Factor8950+S*FactorSCC;
 
-    OutBuf[J].Left = OutBuf[J].Right = (R>32767)?32767:(R<-32768)?-32768:R;
+    (OutBuf++)->Channel = (R>32767)?32767:(R<-32768)?-32768:R;
   }
 #else
   unsigned int Samples = *length;
@@ -423,7 +423,7 @@ void AudioCallback(void* buf, unsigned int *length, void *userdata)
   for(J=0;J<Samples;J++)
   {
     I=(Wave[J]*MasterVolume)/255;
-    OutBuf[J].Left = OutBuf[J].Right = I>32767? 32767:I<-32768? -32768:I;
+    (OutBuf++)->Channel = I>32767? 32767:I<-32768? -32768:I;
   }
 #endif
 }

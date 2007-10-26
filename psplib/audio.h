@@ -16,17 +16,23 @@ extern "C" {
 #endif
 
 #define PSP_AUDIO_SAMPLE_ALIGN(s) (((s) + 63) & ~63)
+#define PSP_AUDIO_SAMPLE_TRUNCATE(s) ((s) & ~63)
 #define PSP_AUDIO_MAX_VOLUME      0x8000
 
 typedef struct 
 {
   short Left;
   short Right;
-} PspSample;
+} PspStereoSample;
 
-typedef void (*pspAudioCallback)(void *buf, unsigned int *length, void *userdata);
+typedef struct 
+{
+  short Channel;
+} PspMonoSample;
 
-int  pspAudioInit(int sample_count);
+typedef void (*pspAudioCallback)(void *buffer, unsigned int *sample_count, void *userdata);
+
+int  pspAudioInit(int sample_count, int stereo);
 void pspAudioSetVolume(int channel, int left, int right);
 void pspAudioSetChannelCallback(int channel, pspAudioCallback callback, void *userdata);
 void pspAudioShutdown();

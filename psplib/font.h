@@ -41,6 +41,8 @@ extern "C" {
 #define PSP_CHAR_EMPTY_BATT "\266"
 #define PSP_CHAR_FULL_BATT  "\263"
 
+#define PSP_CHAR_MS         "\271"
+
 #define PSP_FONT_RESTORE 020
 #define PSP_FONT_BLACK   021
 #define PSP_FONT_RED     022

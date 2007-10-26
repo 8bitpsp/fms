@@ -150,8 +150,8 @@ int InitMachine(void)
   }
 
 #ifdef SOUND
-  /* Initialize sound */   
-  if(InitSound(UseSound,Verbose))
+  /* Initialize sound */
+  if(InitSound(UseSound, 0))
     SetChannels(SndVolume,SndSwitch);
 #endif
 

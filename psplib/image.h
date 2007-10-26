@@ -51,6 +51,7 @@ PspImage* pspImageCreateVram(int width, int height, int bits_per_pixel);
 PspImage* pspImageCreateOptimized(int width, int height, int bpp);
 void      pspImageDestroy(PspImage *image);
 
+PspImage* pspImageRotate(const PspImage *orig, int angle_cw);
 PspImage* pspImageCreateThumbnail(const PspImage *image);
 PspImage* pspImageCreateCopy(const PspImage *image);
 void      pspImageClear(PspImage *image, unsigned int color);

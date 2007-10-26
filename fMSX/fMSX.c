@@ -46,17 +46,13 @@ int main(int argc,char *argv[])
 
   /* Initialize PSP */
   pspInit(argv[0]);
-  pspAudioInit(SND_BUFSIZE);
+  pspAudioInit(SND_BUFSIZE, 0);
   pspCtrlInit();
   pspVideoInit();
 
   /* Initialize callbacks */
   pspRegisterCallback(PSP_EXIT_CALLBACK, ExitCallback, NULL);
   pspStartCallbackThread();
-
-  /* Redirect stdout/stderr */
-  //sceKernelStdoutReopen("ms0:/stdout.txt", PSP_O_WRONLY, 0777);
-  //sceKernelStderrReopen("ms0:/stderr.txt", PSP_O_WRONLY, 0777);
 
   int i;
 

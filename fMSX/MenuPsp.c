@@ -35,6 +35,7 @@
 
 #include "LibPsp.h"
 #include "MenuPsp.h"
+#include "Sound.h"
 
 #define TAB_QUICKLOAD 0
 #define TAB_STATE     1
@@ -56,6 +57,8 @@
 #define SYSTEM_MODEL       14
 #define SYSTEM_RAMPAGES    15
 #define SYSTEM_VRAMPAGES   16
+#define SYSTEM_MSXMUSIC    17
+#define SYSTEM_MSXAUDIO    18
 
 #define OPTION_DISPLAY_MODE  1
 #define OPTION_FRAME_LIMITER 2
@@ -67,6 +70,15 @@
 #define OPTION_ANIMATE       8
 
 extern PspImage *Screen;
+
+extern int UseSound;
+#ifdef ALTSOUND
+extern int Use2413; /* MSX-MUSIC emulation (1=enable)  */
+extern int Use8950; /* MSX-AUDIO emulation (1=enable)  */
+#else
+int Use2413 = 0; /* Stub variables */
+int Use8950 = 0;
+#endif
 
 int DisplayMode;
 int FrameLimiter;
@@ -225,6 +237,7 @@ static const PspMenuOptionDef
   },
   PspClockFreqOptions[] = {
     MENU_OPTION("222 MHz", 222),
+    MENU_OPTION("266 MHz", 266),
     MENU_OPTION("300 MHz", 300),
     MENU_OPTION("333 MHz", 333),
     MENU_END_OPTIONS
@@ -378,6 +391,13 @@ static const char
 /* Define menu lists */
 static const PspMenuItemDef 
   SystemMenuDef[] = {
+#ifdef ALTSOUND
+    MENU_HEADER("Audio"),
+    MENU_ITEM("MSX Music emulation", SYSTEM_MSXAUDIO, ToggleOptions, -1, 
+      "\026\250\020 Toggle MSX Music emulation"),
+    MENU_ITEM("MSX Audio emulation", SYSTEM_MSXMUSIC, ToggleOptions, -1, 
+      "\026\250\020 Toggle MSX Audio emulation"),
+#endif
     MENU_HEADER("Cartridges"),
     MENU_ITEM("Slot A", SYSTEM_CART_A, CartNameOptions, 0, EmptyDeviceText),
     MENU_ITEM("Type", SYSTEM_CART_A_TYPE, MapperTypeOptions, 0, 
@@ -651,6 +671,9 @@ void InitMenu()
   UiMetric.TitleColor = PSP_COLOR_WHITE;
   UiMetric.MenuFps = 30;
   UiMetric.TabBgColor = COLOR(0xca,0xca,0xff,0xff);
+
+  if (Use2413 || Use8950) 
+    pspUiFlashMessage("Initializing sound emulation, please wait...");
 }
 
 int OnQuickloadOk(const void *browser, const void *path)
@@ -733,8 +756,7 @@ int OnSplashButtonPress(const struct PspUiSplash *splash,
   return OnGenericButtonPress(NULL, NULL, button_mask);
 }
 
-int OnMenuItemChanged(const struct PspUiMenu *uimenu, 
-  PspMenuItem* item, 
+int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item, 
   const PspMenuOption* option)
 {
   if (uimenu == &OptionUiMenu)
@@ -777,6 +799,32 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu,
   {
     switch(item->ID)
     {
+    case SYSTEM_MSXAUDIO:
+      if ((int)option->Value != Use8950)
+      {
+        /* Restart sound engine */
+        TrashSound();
+        if ((int)option->Value || Use2413)
+          pspUiFlashMessage("Please wait, reinitializing sound engine...");
+        Use8950 = (int)option->Value;
+        if (UseSound && !InitSound(UseSound, 0))
+          pspUiAlert("Sound initialization failed");
+      }
+      break;
+
+    case SYSTEM_MSXMUSIC:
+      if ((int)option->Value != Use2413)
+      {
+        /* Restart sound engine */
+        TrashSound();
+        if ((int)option->Value || Use8950)
+          pspUiFlashMessage("Please wait, reinitializing sound engine...");
+        Use2413 = (int)option->Value;
+        if (UseSound && !InitSound(UseSound, 0))
+          pspUiAlert("Sound initialization failed");
+      }
+      break;
+
     case SYSTEM_CART_A_TYPE:
     case SYSTEM_CART_B_TYPE:
 
@@ -1125,6 +1173,11 @@ static void LoadOptions()
   RAMPages = pspInitGetInt(init, "System", "RAM Pages", RAMPages);
   VRAMPages = pspInitGetInt(init, "System", "VRAM Pages", VRAMPages);
 
+#ifdef ALTSOUND
+  Use2413 = pspInitGetInt(init, "Audio", "MSX Music", 0);
+  Use8950 = pspInitGetInt(init, "Audio", "MSX Audio", 0);
+#endif
+
   if (DiskPath) free(DiskPath);
   if (CartPath) free(CartPath); 
   if (Quickload) free(Quickload);
@@ -1162,6 +1215,10 @@ static int SaveOptions()
   pspInitSetInt(init, "System", "RAM Pages", RAMPages);
   pspInitSetInt(init, "System", "VRAM Pages", VRAMPages);
 
+#ifdef ALTSOUND
+  pspInitSetInt(init, "Audio", "MSX Audio", Use8950);
+  pspInitSetInt(init, "Audio", "MSX Music", Use2413);
+#endif
   if (Quickload)
   {
     char *qlpath = pspFileIoGetParentDirectory(Quickload);
@@ -1214,6 +1271,10 @@ void DisplayMenu()
       pspMenuSelectOptionByValue(item, (void*)RAMPages);
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_VRAMPAGES);
       pspMenuSelectOptionByValue(item, (void*)VRAMPages);
+      item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_MSXAUDIO);
+      pspMenuSelectOptionByValue(item, (void*)Use8950);
+      item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_MSXMUSIC);
+      pspMenuSelectOptionByValue(item, (void*)Use2413);
 
       pspUiOpenMenu(&SystemUiMenu, NULL);
       break;

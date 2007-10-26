@@ -22,6 +22,7 @@
 static int AudioReady;
 static volatile int StopAudio;
 static int SampleCount;
+static int Stereo;
 
 typedef struct {
   int ThreadHandle;
@@ -35,19 +36,25 @@ typedef struct {
 static int DirectHandle;
 static ChannelInfo AudioStatus[AUDIO_CHANNELS];
 static short *AudioBuffer[AUDIO_CHANNELS][2];
+static unsigned int AudioBufferSamples[AUDIO_CHANNELS][2];
 
 static int AudioChannelThread(int args, void *argp);
 static void FreeBuffers();
 static int OutputBlocking(unsigned int channel, 
   unsigned int vol1, unsigned int vol2, void *buf, int length);
 
-int pspAudioInit(int sample_count)
+int pspAudioInit(int sample_count, int stereo)
 {
   int i, j, failed;
 
+  Stereo = stereo;
   StopAudio = 0;
   AudioReady = 0;
   DirectHandle = -1;
+
+  /* Check sample count */
+  if (sample_count < 0) sample_count = DEFAULT_SAMPLE_COUNT;
+  sample_count = PSP_AUDIO_SAMPLE_ALIGN(sample_count);
 
   for (i = 0; i < AUDIO_CHANNELS; i++)
   {
@@ -59,39 +66,42 @@ int pspAudioInit(int sample_count)
     AudioStatus[i].Userdata = NULL;
 
     for (j = 0; j < 2; j++)
+    {
       AudioBuffer[i][j] = NULL;
+      AudioBufferSamples[i][j] = 0;
+    }
   }
 
-  DirectHandle = sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL, 
-    DEFAULT_SAMPLE_COUNT, PSP_AUDIO_FORMAT_STEREO);
+  DirectHandle = sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL, DEFAULT_SAMPLE_COUNT,
+    (Stereo) ? PSP_AUDIO_FORMAT_STEREO : PSP_AUDIO_FORMAT_MONO);
 
   /* No callback */
   if ((SampleCount = sample_count) == 0)
     return 1;
 
-  /* Check sample count */
-  if ((SampleCount = sample_count) < 0)
-    SampleCount = DEFAULT_SAMPLE_COUNT;
-  SampleCount = PSP_AUDIO_SAMPLE_ALIGN(SampleCount);
+  SampleCount = sample_count;
 
   /* Initialize buffers */
   for (i = 0; i < AUDIO_CHANNELS; i++)
   {
     for (j = 0; j < 2; j++)
     {
-      if (!(AudioBuffer[i][j] = (short*)malloc(SampleCount * 2 * sizeof(short))))
+      if (!(AudioBuffer[i][j] = (short*)malloc(SampleCount
+        * (Stereo ? sizeof(PspStereoSample) : sizeof(PspMonoSample)))))
       {
         FreeBuffers();
         return 0;
       }
+
+      AudioBufferSamples[i][j] = SampleCount;
     }
   }
 
   /* Initialize channels */
   for (i = 0, failed = 0; i < AUDIO_CHANNELS; i++)
   {
-    AudioStatus[i].Handle = sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL, 
-      SampleCount, PSP_AUDIO_FORMAT_STEREO);
+    AudioStatus[i].Handle = sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL, SampleCount,
+      (Stereo) ? PSP_AUDIO_FORMAT_STEREO : PSP_AUDIO_FORMAT_MONO);
 
     if (AudioStatus[i].Handle < 0)
     { 
@@ -99,10 +109,6 @@ int pspAudioInit(int sample_count)
       break;
     }
   }
-
-  if (!failed)
-	  DirectHandle = sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL, 
-	    SampleCount, PSP_AUDIO_FORMAT_STEREO);
 
   if (failed)
   {
@@ -216,25 +222,31 @@ static int AudioChannelThread(int args, void *argp)
   volatile int bufidx = 0;
   int channel = *(int*)argp;
   int i;
-  unsigned int *ptr, length;
+  unsigned short *ptr_m;
+  unsigned int *ptr_s;
   void *bufptr;
+  unsigned int samples;
   pspAudioCallback callback;
 
   for (i = 0; i < 2; i++)
-    memset(AudioBuffer[channel][bufidx], 
-      0, sizeof(short) * SampleCount * 2);
+    memset(AudioBuffer[channel][bufidx], 0, SampleCount
+      * ((Stereo) ? sizeof(PspStereoSample) : sizeof(PspMonoSample)));
 
   while (!StopAudio)
   {
     callback = AudioStatus[channel].Callback;
     bufptr = AudioBuffer[channel][bufidx];
-    length = SampleCount;
+    samples = AudioBufferSamples[channel][bufidx];
 
-    if (callback) callback(bufptr, &length, AudioStatus[channel].Userdata);
-    else for (i = 0, ptr = bufptr; i < SampleCount; i++) *(ptr++) = 0;
+    if (callback) callback(bufptr, &samples, AudioStatus[channel].Userdata);
+    else
+    {
+      if (Stereo) for (i = 0, ptr_s = bufptr; i < samples; i++) *(ptr_s++) = 0;
+      else for (i = 0, ptr_m = bufptr; i < samples; i++) *(ptr_m++) = 0;
+    }
 
 	  OutputBlocking(channel, AudioStatus[channel].LeftVolume, 
-      AudioStatus[channel].RightVolume, bufptr, length);
+      AudioStatus[channel].RightVolume, bufptr, samples);
 
     bufidx = (bufidx ? 0 : 1);
   }
@@ -298,7 +310,8 @@ void pspAudioSetChannelCallback(int channel, pspAudioCallback callback, void *us
   pci->Userdata = userdata;
   pci->Callback = callback;
 }
-int pspAudioGetSampleCount()
+
+int pspAudioGetSampleCount()
 {
   return SampleCount;
 }
