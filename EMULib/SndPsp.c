@@ -160,8 +160,6 @@ unsigned int InitSound(unsigned int Rate,unsigned int Delay)
   /* Set current instrments (if reopening device) */
   for(J=0;J<SND_CHANNELS;J++) PspSetSound(J,CH[J].Type);
 
-  ResumeSound();
-
   /* Done */
   return(SndRate);
 }

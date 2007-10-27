@@ -82,6 +82,7 @@ static u64 LastTick;
 static u64 CurrentTick;
 static int Frame;
 static int ClearBufferCount;
+static int LastScrMode=-1;
 
 static int PrevDiskHeld;
 static int NextDiskHeld;
@@ -96,6 +97,7 @@ static PspFpsCounter FpsCounter;
 static void OpenMenu();
 static void ResetInput();
 static void HandleSpecialInput(int code, int on);
+static void ResetView();
 
 static int GetKeyStatus(unsigned int code);
 static inline void HandleKeyboardInput(unsigned int code, int on);
@@ -201,6 +203,9 @@ void PutImage(void)
     pspVideoClearScreen();
   }
 
+  /* If screen mode changes readjust viewport */
+  if (LastScrMode!=ScrMode) ResetView();
+
   /* Draw the screen */
   pspVideoPutImage(Screen, ScreenX, ScreenY, ScreenW, ScreenH);
 
@@ -270,7 +275,7 @@ static inline void HandleKeyboardInput(unsigned int code, int on)
   if (on) KBD_SET(code);
   else KBD_RES(code);
 }
-
+#include "ui.h"
 /** Keyboard() ***********************************************/
 /** Check for keyboard events, parse them, and modify MSX   **/
 /** keyboard/joystick, or handle special keys               **/
@@ -306,7 +311,6 @@ void Keyboard(void)
       pspKybdNavigate(KeyLayout, &pad);
 
     MouseState=pad.Lx|(pad.Ly<<8);
-
 #ifdef PSP_DEBUG
     if ((pad.Buttons & (PSP_CTRL_SELECT | PSP_CTRL_START))
       == (PSP_CTRL_SELECT | PSP_CTRL_START))
@@ -382,29 +386,8 @@ static void OpenMenu()
   StopSound();
   DisplayMenu();
 
-  float ratio;
-
-  /* Recompute screen size/position */
-  switch (DisplayMode)
-  {
-  default:
-  case DISPLAY_MODE_UNSCALED:
-    ScreenW = Screen->Viewport.Width;
-    ScreenH = Screen->Viewport.Height;
-    break;
-  case DISPLAY_MODE_FIT_HEIGHT:
-    ratio = (float)SCR_HEIGHT / (float)Screen->Viewport.Height;
-    ScreenW = (float)Screen->Viewport.Width * ratio;
-    ScreenH = SCR_HEIGHT;
-    break;
-  case DISPLAY_MODE_FILL_SCREEN:
-    ScreenW = SCR_WIDTH;
-    ScreenH = SCR_HEIGHT;
-    break;
-  }
-
-  ScreenX = (SCR_WIDTH / 2) - (ScreenW / 2);
-  ScreenY = (SCR_HEIGHT / 2) - (ScreenH / 2);
+  /* Reset view */
+  ResetView();
 
   /* Reset FPS counter */
   pspPerfInitFps(&FpsCounter);
@@ -515,6 +498,40 @@ static void HandleSpecialInput(int code, int on)
     PrevDiskHeld = on;
     break;
   }
+}
+
+void ResetView()
+{
+  Screen->Viewport.Width = 
+    (ScrMode==6||ScrMode==7||ScrMode==13)?512:WIDTH;
+
+  float ratio;
+
+  /* Recompute screen size/position */
+  switch (DisplayMode)
+  {
+  default:
+  case DISPLAY_MODE_UNSCALED:
+//    ScreenW = (Screen->Viewport.Width==512)?256:WIDTH;
+    ScreenW = WIDTH;
+    ScreenH = Screen->Viewport.Height;
+    break;
+  case DISPLAY_MODE_FIT_HEIGHT:
+    ratio = (float)SCR_HEIGHT / (float)Screen->Viewport.Height;
+//    ScreenW = (float)((Screen->Viewport.Width==512)?256:WIDTH) * ratio - 1;
+    ScreenW = (float)WIDTH * ratio - 1;
+    ScreenH = SCR_HEIGHT;
+    break;
+  case DISPLAY_MODE_FILL_SCREEN:
+    ScreenW = SCR_WIDTH;
+    ScreenH = SCR_HEIGHT;
+    break;
+  }
+
+  ScreenX=(SCR_WIDTH / 2)-(ScreenW / 2);
+  ScreenY=(SCR_HEIGHT / 2)-(ScreenH / 2);
+
+  LastScrMode=ScrMode;
 }
 
 /** Part of the code common for Unix/X and MSDOS drivers *****/ 

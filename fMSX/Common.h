@@ -13,6 +13,8 @@
 /**     changes to this file.                               **/
 /*************************************************************/
 
+#define IS_WIDESCREEN (ScrMode==6||ScrMode==7||ScrMode==13)
+
 static int FirstLine = 18;     /* First scanline in the XBuf */
 
 static void  Sprites(byte Y,pixel *Line);
@@ -80,12 +82,13 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   P=(pixel *)Screen->Pixels;
 
   /* Paint top of the screen */
-  S=Screen->Width-Screen->Viewport.Width;
+  int ScreenWidth=(IS_WIDESCREEN)?512:WIDTH;
+  S=Screen->Width-ScreenWidth;
   if(!Y)
   {
     for(I=0,H=0;I<FirstLine;I++)
     {
-      for(J=0;J<Screen->Viewport.Width;J++,H++) P[H]=C;
+      for(J=0;J<ScreenWidth;J++,H++) P[H]=C;
       H+=S;
     }
   }
@@ -93,11 +96,15 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   /* Start of the line */
   P+=Screen->Width*(FirstLine+Y);
 
-  /* Paint left/right borders */
+  /* Paint left/right borders (256-wide only) */
 //  E=(Screen->Viewport.Width-256)>>1;
-  E=8;
-  for(H=E+HAdjust;H>0;H--) P[H-1]=C;
-  for(H=E-HAdjust;H>0;H--) P[Screen->Viewport.Width-H]=C;
+  E=0;
+  if (ScreenWidth!=512)
+  {
+    E=8;
+    for(H=E+HAdjust;H>0;H--) P[H-1]=C;
+    for(H=E-HAdjust;H>0;H--) P[ScreenWidth-H]=C;
+  }
 
   /* Paint bottom of the screen */
   H=ScanLines212? 212:192;
@@ -105,13 +112,13 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   {
     for(I=FirstLine,H=Screen->Width;I>0;I--)
     {
-      for(J=0;J<Screen->Viewport.Width;J++,H++) P[H]=C;
+      for(J=0;J<ScreenWidth;J++,H++) P[H]=C;
       H+=S;
     }
   }
 
   /* Return pointer to the scanline in XBuf */
-  return(P+E+HAdjust);
+  return(ScreenWidth==512?P:P+E+HAdjust);
 }
 
 /** Sprites() ************************************************/
