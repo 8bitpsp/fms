@@ -58,7 +58,6 @@ static void *VramChunkOffset;
 static unsigned short __attribute__((aligned(16))) ScratchBuffer[BUF_WIDTH * SCR_HEIGHT];
 //static void *ScratchBuffer;
 //static int ScratchBufferSize;
-static unsigned int VramBufferOffset;
 static unsigned int __attribute__((aligned(16))) List[262144]; /* TODO: ? */
 
 static void* GetBuffer(const PspImage *image);
@@ -68,28 +67,28 @@ void pspVideoInit()
 {
   PixelFormat = GU_PSM_5551;
   TexColor = GU_COLOR_5551;
-  VramBufferOffset = 0;
   VramOffset = 0;
   VramChunkOffset = (void*)0x44088000;
 //  ScratchBufferSize = sizeof(unsigned short) * BUF_WIDTH * SCR_HEIGHT;
 //  ScratchBuffer = pspVideoAllocateVramChunk(ScratchBufferSize); //;memalign(16, ScratchBufferSize);
 
   int size;
+  unsigned int vram_buffer_offset = 0;
 
   /* Initialize draw buffer */
   size = 2 * BUF_WIDTH * SCR_HEIGHT;
-  DrawBuffer = (void*)VramBufferOffset;
-  VramBufferOffset += size;
+  DrawBuffer = (void*)vram_buffer_offset;
+  vram_buffer_offset += size;
 
   /* Initialize display buffer */
   size = 4 * BUF_WIDTH * SCR_HEIGHT;
-  DisplayBuffer = (void*)VramBufferOffset;
-  VramBufferOffset += size;
+  DisplayBuffer = (void*)vram_buffer_offset;
+  vram_buffer_offset += size;
 
   /* Initialize depth buffer */
   size = 2 * BUF_WIDTH * SCR_HEIGHT;
-  void *depth_buf = (void*)VramBufferOffset;
-  VramBufferOffset += size;
+  void *depth_buf = (void*)vram_buffer_offset;
+  vram_buffer_offset += size;
 
   sceGuInit();
   sceGuStart(GU_DIRECT, List);
