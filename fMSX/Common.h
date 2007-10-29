@@ -13,8 +13,6 @@
 /**     changes to this file.                               **/
 /*************************************************************/
 
-#define IS_WIDESCREEN (ScrMode==6||ScrMode==7||ScrMode==13)
-
 static int FirstLine = 18;     /* First scanline in the XBuf */
 
 static void  Sprites(byte Y,pixel *Line);
@@ -46,7 +44,7 @@ static void ClearLine(register pixel *P,register pixel C)
 INLINE pixel YJKColor(register int Y,register int J,register int K)
 {
   register int R,G,B;
-		
+    
   R=Y+J;
   G=Y+K;
   B=((5*Y-2*J-K)/4);
@@ -82,13 +80,12 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   P=(pixel *)Screen->Pixels;
 
   /* Paint top of the screen */
-  int ScreenWidth=(IS_WIDESCREEN)?512:WIDTH;
-  S=Screen->Width-ScreenWidth;
+  S=Screen->Width-WIDTH;
   if(!Y)
   {
     for(I=0,H=0;I<FirstLine;I++)
     {
-      for(J=0;J<ScreenWidth;J++,H++) P[H]=C;
+      for(J=0;J<WIDTH;J++,H++) P[H]=C;
       H+=S;
     }
   }
@@ -96,15 +93,10 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   /* Start of the line */
   P+=Screen->Width*(FirstLine+Y);
 
-  /* Paint left/right borders (256-wide only) */
-//  E=(Screen->Viewport.Width-256)>>1;
-  E=0;
-  if (ScreenWidth!=512)
-  {
-    E=8;
-    for(H=E+HAdjust;H>0;H--) P[H-1]=C;
-    for(H=E-HAdjust;H>0;H--) P[ScreenWidth-H]=C;
-  }
+  /* Paint left/right borders */
+  E=(WIDTH-256)>>1;
+  for(H=E+HAdjust;H>0;H--) P[H-1]=C;
+  for(H=E-HAdjust;H>0;H--) P[WIDTH-H]=C;
 
   /* Paint bottom of the screen */
   H=ScanLines212? 212:192;
@@ -112,13 +104,13 @@ pixel *RefreshBorder(register byte Y,register pixel C)
   {
     for(I=FirstLine,H=Screen->Width;I>0;I--)
     {
-      for(J=0;J<ScreenWidth;J++,H++) P[H]=C;
+      for(J=0;J<WIDTH;J++,H++) P[H]=C;
       H+=S;
     }
   }
 
   /* Return pointer to the scanline in XBuf */
-  return(ScreenWidth==512?P:P+E+HAdjust);
+  return(P+E+HAdjust);
 }
 
 /** Sprites() ************************************************/
@@ -662,7 +654,203 @@ void RefreshLine12(register byte Y)
   }
 }
 
-#ifdef NARROW
+#ifdef HIRES
+
+/* TODO: add 8x8 border on each side */
+#define HIRES_WIDTH 512
+
+/** HiResClearLine() *****************************************/
+/** Clear 512 pixels from P with color C.                   **/
+/*************************************************************/
+static void HiResClearLine(register pixel *P,register pixel C)
+{
+  register int J;
+
+  for(J=0;J<512;J++) P[J]=C;
+}
+
+/** HiResRefreshBorder() *************************************/
+/** This function is called from RefreshLine#() to refresh  **/
+/** the screen border. It returns a pointer to the start of **/
+/** scanline Y in XBuf or 0 if scanline is beyond XBuf.     **/
+/*************************************************************/
+pixel *HiResRefreshBorder(register byte Y,register pixel C)
+{
+  register pixel *P;
+  register int H;
+  register int I,J,S;
+
+  /* First line number in the buffer */
+  if(!Y) FirstLine=(ScanLines212? 8:18)+VAdjust;
+
+  /* Return 0 if we've run out of the screen buffer due to overscan */
+  if(Y+FirstLine>=HEIGHT) return(0);
+
+  /* Set up the transparent color */
+  XPal[0]=(!BGColor||SolidColor0)? XPal0:XPal[BGColor];
+
+  /* Start of the buffer */
+  P=(pixel *)Screen->Pixels;
+
+  /* Paint top of the screen */
+  S=Screen->Width-HIRES_WIDTH;
+  if(!Y)
+  {
+    for(I=0,H=0;I<FirstLine;I++)
+    {
+      for(J=0;J<HIRES_WIDTH;J++,H++) P[H]=C;
+      H+=S;
+    }
+  }
+
+  /* Start of the line */
+  P+=Screen->Width*(FirstLine+Y);
+
+  /* Paint left/right borders */
+  register int E=(HIRES_WIDTH-512)>>1;
+  for(H=E+HAdjust;H>0;H--) P[H-1]=C;
+  for(H=E-HAdjust;H>0;H--) P[HIRES_WIDTH-H]=C;
+
+  /* Paint bottom of the screen */
+  H=ScanLines212? 212:192;
+  if(Y==H-1)
+  {
+    for(I=FirstLine,H=Screen->Width;I>0;I--)
+    {
+      for(J=0;J<HIRES_WIDTH;J++,H++) P[H]=C;
+      H+=S;
+    }
+  }
+
+  /* Return pointer to the scanline in XBuf */
+  return(P+E+HAdjust);
+}
+
+/** RefreshLine6() *******************************************/
+/** Refresh line Y (0..191/211) of SCREEN6, including       **/
+/** sprites in this line.                                   **/
+/*************************************************************/
+void RefreshLine6(register byte Y)
+{
+  register pixel *P;
+  register byte X,*T,*R,C;
+  byte ZBuf[304];
+
+  P=HiResRefreshBorder(Y,XPal[BGColor&0x03]);
+  if(!P) return;
+
+  if(!ScreenON) HiResClearLine(P,XPal[BGColor&0x03]);
+  else
+  {
+    ColorSprites(Y,ZBuf);
+    R=ZBuf+32;
+    T=ChrTab+(((int)(Y+VScroll)<<7)&ChrTabM&0x7FFF);
+
+    for(X=0;X<32;X++)
+    {
+      C=R[0];P[0] =XPal[C? C: T[0]>>6];
+      C=R[0];P[1] =XPal[C? C:(T[0]>>4)&0x03];
+      C=R[1];P[2] =XPal[C? C:(T[0]>>2)&0x03];
+      C=R[1];P[3] =XPal[C? C: T[0]&0x03];
+      C=R[2];P[4] =XPal[C? C: T[1]>>6];
+      C=R[2];P[5] =XPal[C? C:(T[1]>>4)&0x03];
+      C=R[3];P[6] =XPal[C? C:(T[1]>>2)&0x03];
+      C=R[3];P[7] =XPal[C? C: T[1]&0x03];
+      C=R[4];P[8] =XPal[C? C: T[2]>>6];
+      C=R[4];P[9] =XPal[C? C:(T[2]>>4)&0x03];
+      C=R[5];P[10]=XPal[C? C:(T[2]>>2)&0x03];
+      C=R[5];P[11]=XPal[C? C: T[2]&0x03];
+      C=R[6];P[12]=XPal[C? C: T[3]>>6];
+      C=R[6];P[13]=XPal[C? C:(T[3]>>4)&0x03];
+      C=R[7];P[14]=XPal[C? C:(T[3]>>2)&0x03];
+      C=R[7];P[15]=XPal[C? C: T[3]&0x03];
+      R+=8;P+=16;T+=4;
+    }
+  }
+}
+  
+/** RefreshLine7() *******************************************/
+/** Refresh line Y (0..191/211) of SCREEN7, including       **/
+/** sprites in this line.                                   **/
+/*************************************************************/
+void RefreshLine7(register byte Y)
+{
+  register pixel *P;
+  register byte C,X,*T,*R;
+  byte ZBuf[304];
+
+  P=HiResRefreshBorder(Y,XPal[BGColor]);
+  if(!P) return;
+
+  if(!ScreenON) HiResClearLine(P,XPal[BGColor]);
+  else
+  {
+    ColorSprites(Y,ZBuf);
+    R=ZBuf+32;
+    T=ChrTab+(((int)(Y+VScroll)<<8)&ChrTabM&0xFFFF);
+
+    for(X=0;X<32;X++)
+    {
+      C=R[0];P[0] =XPal[C? C:T[0]>>4];
+      C=R[0];P[1] =XPal[C? C:T[0]&0x0F];
+      C=R[1];P[2] =XPal[C? C:T[1]>>4];
+      C=R[1];P[3] =XPal[C? C:T[1]&0x0F];
+      C=R[2];P[4] =XPal[C? C:T[2]>>4];
+      C=R[2];P[5] =XPal[C? C:T[2]&0x0F];
+      C=R[3];P[6] =XPal[C? C:T[3]>>4];
+      C=R[3];P[7] =XPal[C? C:T[3]&0x0F];
+      C=R[4];P[8] =XPal[C? C:T[4]>>4];
+      C=R[4];P[9] =XPal[C? C:T[4]&0x0F];
+      C=R[5];P[10]=XPal[C? C:T[5]>>4];
+      C=R[5];P[11]=XPal[C? C:T[5]&0x0F];
+      C=R[6];P[12]=XPal[C? C:T[6]>>4];
+      C=R[6];P[13]=XPal[C? C:T[6]&0x0F];
+      C=R[7];P[14]=XPal[C? C:T[7]>>4];
+      C=R[7];P[15]=XPal[C? C:T[7]&0x0F];
+    }
+  }
+}
+
+/** RefreshLineTx80() ****************************************/
+/** Refresh line Y (0..191/211) of TEXT80.                  **/
+/*************************************************************/
+void RefreshLineTx80(register byte Y)
+{
+  register pixel *P,FC,BC;
+  register byte X,M,*T,*C,*G;
+
+  BC=XPal[BGColor];
+  P=HiResRefreshBorder(Y,BC);
+  if(!P) return;
+
+  if(!ScreenON) HiResClearLine(P,BC);
+  else
+  {
+    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=P[7]=P[8]=
+    P[9]=P[10]=P[11]=P[12]=P[13]=P[14]=P[15]=P[16]=P[17]=BC;
+    G=(FontBuf&&(Mode&MSX_FIXEDFONT)? FontBuf:ChrGen)+((Y+VScroll)&0x07);
+    T=ChrTab+((80*(Y>>3))&ChrTabM);
+    C=ColTab+((10*(Y>>3))&ColTabM);
+    P+=18;
+
+    for(X=0,M=0x00;X<80;X++,T++,P+=6)
+    {
+      if(!(X&0x07)) M=*C++;
+      if(M&0x80) { FC=XPal[XFGColor];BC=XPal[XBGColor]; }
+      else       { FC=XPal[FGColor];BC=XPal[BGColor]; }
+      M<<=1;
+      Y=*(G+((int)*T<<3));
+      P[0]=Y&0x80? FC:BC;P[1]=Y&0x40? FC:BC;
+      P[2]=Y&0x20? FC:BC;P[3]=Y&0x10? FC:BC;
+      P[4]=Y&0x08? FC:BC;P[5]=Y&0x04? FC:BC;
+    }
+
+    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=
+    P[7]=P[8]=P[9]=P[10]=P[11]=P[12]=P[13]=XPal[BGColor];
+  }
+}
+
+#else
 
 /** RefreshLine6() *******************************************/
 /** Refresh line Y (0..191/211) of SCREEN6, including       **/
@@ -749,28 +937,26 @@ void RefreshLineTx80(register byte Y)
   if(!ScreenON) ClearLine(P,BC);
   else
   {
-    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=P[7]=P[8]=
-    P[9]=P[10]=P[11]=P[12]=P[13]=P[14]=P[15]=P[16]=P[17]=BC;
+    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=P[7]=P[8]=BC;
     G=(FontBuf&&(Mode&MSX_FIXEDFONT)? FontBuf:ChrGen)+((Y+VScroll)&0x07);
     T=ChrTab+((80*(Y>>3))&ChrTabM);
     C=ColTab+((10*(Y>>3))&ColTabM);
-    P+=18;
+    P+=9;
 
-    for(X=0,M=0x00;X<80;X++,T++,P+=6)
+    for(X=0,M=0x00;X<80;X++,T++,P+=3)
     {
       if(!(X&0x07)) M=*C++;
       if(M&0x80) { FC=XPal[XFGColor];BC=XPal[XBGColor]; }
       else       { FC=XPal[FGColor];BC=XPal[BGColor]; }
       M<<=1;
       Y=*(G+((int)*T<<3));
-      P[0]=Y&0x80? FC:BC;P[1]=Y&0x40? FC:BC;
-      P[2]=Y&0x20? FC:BC;P[3]=Y&0x10? FC:BC;
-      P[4]=Y&0x08? FC:BC;P[5]=Y&0x04? FC:BC;
+      P[0]=Y&0xC0? FC:BC;
+      P[1]=Y&0x30? FC:BC;
+      P[2]=Y&0x0C? FC:BC;
     }
 
-    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=
-    P[7]=P[8]=P[9]=P[10]=P[11]=P[12]=P[13]=XPal[BGColor];
+    P[0]=P[1]=P[2]=P[3]=P[4]=P[5]=P[6]=XPal[BGColor];
   }
 }
 
-#endif /* NARROW */
+#endif /* else HIRES */

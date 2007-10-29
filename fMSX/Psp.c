@@ -502,9 +502,7 @@ static void HandleSpecialInput(int code, int on)
 
 void ResetView()
 {
-  Screen->Viewport.Width = 
-    (ScrMode==6||ScrMode==7||ScrMode==13)?512:WIDTH;
-
+  int is_widescreen = (ScrMode==6||ScrMode==7||ScrMode==13);
   float ratio;
 
   /* Recompute screen size/position */
@@ -512,17 +510,19 @@ void ResetView()
   {
   default:
   case DISPLAY_MODE_UNSCALED:
-//    ScreenW = (Screen->Viewport.Width==512)?256:WIDTH;
-    ScreenW = WIDTH;
+    Screen->Viewport.Width = (is_widescreen) ? 480 : WIDTH; /* cropped */
+    ScreenW = Screen->Viewport.Width;
     ScreenH = Screen->Viewport.Height;
     break;
   case DISPLAY_MODE_FIT_HEIGHT:
+    Screen->Viewport.Width = (is_widescreen) ? 512 : WIDTH;
     ratio = (float)SCR_HEIGHT / (float)Screen->Viewport.Height;
 //    ScreenW = (float)((Screen->Viewport.Width==512)?256:WIDTH) * ratio - 1;
     ScreenW = (float)WIDTH * ratio - 1;
     ScreenH = SCR_HEIGHT;
     break;
   case DISPLAY_MODE_FILL_SCREEN:
+    Screen->Viewport.Width = (is_widescreen) ? 512 : WIDTH;
     ScreenW = SCR_WIDTH;
     ScreenH = SCR_HEIGHT;
     break;
@@ -532,6 +532,7 @@ void ResetView()
   ScreenY=(SCR_HEIGHT / 2)-(ScreenH / 2);
 
   LastScrMode=ScrMode;
+  ClearBufferCount=2;
 }
 
 /** Part of the code common for Unix/X and MSDOS drivers *****/ 
