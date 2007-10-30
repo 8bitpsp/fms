@@ -42,11 +42,14 @@ int UseSound  = 44100;          /* Sound driver frequency    */
 extern int FrameLimiter;
 extern int VSync;
 extern int ShowFps;
+extern int HiresEnabled;
 extern char *ScreenshotPath;
 
 /** Various variables ****************************************/
-#define WIDTH  272
-#define HEIGHT 228
+#define HIRES_WIDTH 512
+#define WIDTH       272
+#define HEIGHT      228
+/* TODO: for HIRES_WIDTH add 8 pixel border on each side */
 
 typedef unsigned short pixel;
 
@@ -275,7 +278,7 @@ static inline void HandleKeyboardInput(unsigned int code, int on)
   if (on) KBD_SET(code);
   else KBD_RES(code);
 }
-#include "ui.h"
+
 /** Keyboard() ***********************************************/
 /** Check for keyboard events, parse them, and modify MSX   **/
 /** keyboard/joystick, or handle special keys               **/
@@ -502,27 +505,30 @@ static void HandleSpecialInput(int code, int on)
 
 void ResetView()
 {
-  int is_widescreen = (ScrMode==6||ScrMode==7||ScrMode==13);
   float ratio;
+  Screen->Viewport.Width = WIDTH;
 
   /* Recompute screen size/position */
   switch (DisplayMode)
   {
   default:
   case DISPLAY_MODE_UNSCALED:
-    Screen->Viewport.Width = (is_widescreen) ? 480 : WIDTH; /* cropped */
+    Screen->Viewport.Width = (IS_WIDESCREEN && HiresEnabled) 
+      ? SCR_WIDTH : WIDTH;
     ScreenW = Screen->Viewport.Width;
     ScreenH = Screen->Viewport.Height;
     break;
   case DISPLAY_MODE_FIT_HEIGHT:
-    Screen->Viewport.Width = (is_widescreen) ? 512 : WIDTH;
+    Screen->Viewport.Width = (IS_WIDESCREEN && HiresEnabled) 
+      ? HIRES_WIDTH : WIDTH;
     ratio = (float)SCR_HEIGHT / (float)Screen->Viewport.Height;
 //    ScreenW = (float)((Screen->Viewport.Width==512)?256:WIDTH) * ratio - 1;
     ScreenW = (float)WIDTH * ratio - 1;
     ScreenH = SCR_HEIGHT;
     break;
   case DISPLAY_MODE_FILL_SCREEN:
-    Screen->Viewport.Width = (is_widescreen) ? 512 : WIDTH;
+    Screen->Viewport.Width = (IS_WIDESCREEN && HiresEnabled) 
+      ? HIRES_WIDTH : WIDTH;
     ScreenW = SCR_WIDTH;
     ScreenH = SCR_HEIGHT;
     break;
@@ -535,5 +541,4 @@ void ResetView()
   ClearBufferCount=2;
 }
 
-/** Part of the code common for Unix/X and MSDOS drivers *****/ 
 #include "Common.h"

@@ -59,6 +59,7 @@
 #define SYSTEM_VRAMPAGES   16
 #define SYSTEM_MSXMUSIC    17
 #define SYSTEM_MSXAUDIO    18
+#define SYSTEM_HIRES       19
 
 #define OPTION_DISPLAY_MODE  1
 #define OPTION_FRAME_LIMITER 2
@@ -86,6 +87,7 @@ int VSync;
 int ClockFreq;
 int Frameskip;
 int ShowFps;
+int HiresEnabled;
 
 static PspImage *Background;
 static PspImage *NoSaveIcon;
@@ -128,7 +130,7 @@ static int  SaveOptions();
 
 static PspImage* LoadStateIcon(const char *path);
 static int LoadState(const char *path);
-static PspImage* SaveState(const char *path, PspImage *icon);
+static PspImage* SaveState(const char *path, const PspImage *icon);
 
 // TODO: 
 #define WIDTH  272
@@ -398,6 +400,9 @@ static const PspMenuItemDef
     MENU_ITEM("MSX Audio emulation", SYSTEM_MSXMUSIC, ToggleOptions, -1, 
       "\026\250\020 Toggle MSX Audio emulation"),
 #endif
+    MENU_HEADER("Video"),
+    MENU_ITEM("High-resolution renderer", SYSTEM_HIRES, ToggleOptions, -1, 
+      "\026\250\020 Toggle hi-res rendering for wide modes (6, 7, 80-text)"),
     MENU_HEADER("Cartridges"),
     MENU_ITEM("Slot A", SYSTEM_CART_A, CartNameOptions, 0, EmptyDeviceText),
     MENU_ITEM("Type", SYSTEM_CART_A_TYPE, MapperTypeOptions, 0, 
@@ -660,7 +665,7 @@ void InitMenu()
   UiMetric.BrowserFileColor = PSP_COLOR_GRAY;
   UiMetric.BrowserDirectoryColor = PSP_COLOR_YELLOW;
   UiMetric.GalleryIconsPerRow = 5;
-  UiMetric.GalleryIconMarginWidth = 8;
+  UiMetric.GalleryIconMarginWidth = 16;
   UiMetric.MenuItemMargin = 20;
   UiMetric.MenuSelOptionBg = PSP_COLOR_BLACK;
   UiMetric.MenuOptionBoxColor = PSP_COLOR_GRAY;
@@ -799,6 +804,10 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item,
   {
     switch(item->ID)
     {
+    case SYSTEM_HIRES:
+      HiresEnabled = (int)option->Value;
+      break;
+
     case SYSTEM_MSXAUDIO:
       if ((int)option->Value != Use8950)
       {
@@ -1173,6 +1182,8 @@ static void LoadOptions()
   RAMPages = pspInitGetInt(init, "System", "RAM Pages", RAMPages);
   VRAMPages = pspInitGetInt(init, "System", "VRAM Pages", VRAMPages);
 
+  HiresEnabled = pspInitGetInt(init, "Video", "Hires Renderer", 0);
+
 #ifdef ALTSOUND
   Use2413 = pspInitGetInt(init, "Audio", "MSX Music", 0);
   Use8950 = pspInitGetInt(init, "Audio", "MSX Audio", 0);
@@ -1219,6 +1230,9 @@ static int SaveOptions()
   pspInitSetInt(init, "Audio", "MSX Audio", Use8950);
   pspInitSetInt(init, "Audio", "MSX Music", Use2413);
 #endif
+
+  pspInitSetInt(init, "Video", "Hires Renderer", HiresEnabled);
+
   if (Quickload)
   {
     char *qlpath = pspFileIoGetParentDirectory(Quickload);
@@ -1263,6 +1277,8 @@ void DisplayMenu()
       break;
     case TAB_SYSTEM:
       /* Init system configuration */
+      item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_HIRES);
+      pspMenuSelectOptionByValue(item, (void*)HiresEnabled);
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_TIMING);
       pspMenuSelectOptionByValue(item, (void*)(Mode & MSX_VIDEO));
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_MODEL);
@@ -1418,9 +1434,11 @@ void OnGenericRender(const void *uiobject, const void *item_obj)
 void OnSystemRender(const void *uiobject, const void *item_obj)
 {
   int w, h, x, y;
-  w = Screen->Viewport.Width >> 1;
+  w = (Screen->Viewport.Width > WIDTH) 
+    ? Screen->Viewport.Width >> 2 /* High resolution */
+    : Screen->Viewport.Width >> 1;
   h = Screen->Viewport.Height >> 1;
-  x = SCR_WIDTH - w - 8;
+  x = UiMetric.Right - w - UiMetric.ScrollbarWidth;
   y = SCR_HEIGHT - h - 56;
 
   /* Draw a small representation of the screen */
@@ -1640,15 +1658,36 @@ int LoadState(const char *path)
   return LoadSTA(path);
 }
 
+PspImage* GetScreenThumbnail(const PspImage *icon)
+{
+  /* If it's a low-res image, use the library */
+  if (icon->Viewport.Width <= WIDTH)
+    return pspImageCreateThumbnail(icon);
+
+  /* Hi-res image - manually scale 0.25x0.5*/
+  PspImage *thumb;
+  if (!(thumb = pspImageCreate(icon->Viewport.Width / 4, 
+    icon->Viewport.Height / 2, PSP_IMAGE_16BPP)))
+    return NULL;
+
+  int i, j, k, l;
+  for (i = 0, k = 0; i < icon->Viewport.Height; i+=2, k++)
+    for (j = 0, l = 0; j < icon->Viewport.Width; j+=4, l++)
+      ((unsigned short*)thumb->Pixels)[k * thumb->Width + l] 
+        = ((unsigned short*)icon->Pixels)[i * icon->Width + j];
+
+  return thumb;
+}
+
 /* Save state */
-PspImage* SaveState(const char *path, PspImage *icon)
+PspImage* SaveState(const char *path, const PspImage *icon)
 {
   /* Save state */
   if (!SaveSTA(path))
     return NULL;
 
   /* Create thumbnail */
-  PspImage *thumb = pspImageCreateThumbnail(icon);
+  PspImage *thumb = GetScreenThumbnail(icon);
   if (!thumb) return NULL;
 
   /* Reopen file in append mode */

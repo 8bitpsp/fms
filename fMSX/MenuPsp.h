@@ -53,6 +53,8 @@
 #define DISPLAY_MODE_FIT_HEIGHT  1
 #define DISPLAY_MODE_FILL_SCREEN 2
 
+#define IS_WIDESCREEN (ScrMode==6||ScrMode==7||ScrMode==13)
+
 struct GameConfig
 {
   unsigned int ButtonMap[MAP_BUTTONS];
