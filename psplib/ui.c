@@ -1466,7 +1466,17 @@ void pspUiOpenMenu(const PspUiMenu *uimenu, const char *title)
               if (!sel)
               {
                 sel = last;
-                pos = last_valid;
+
+                pos.Index = 0;
+                pos.Offset = 0;
+                pos.Top = menu->First;
+
+                for (item = menu->First; item != sel; item = item->Next)
+                {
+                  if (pos.Index + 1 >= lnmax) { pos.Offset++; pos.Top = pos.Top->Next; } 
+                  else pos.Index++;
+                }
+
                 break;
               }
 

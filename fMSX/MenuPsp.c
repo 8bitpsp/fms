@@ -35,6 +35,7 @@
 
 #include "LibPsp.h"
 #include "MenuPsp.h"
+#include "Psp.h"
 #include "Sound.h"
 
 #define TAB_QUICKLOAD 0
@@ -60,6 +61,7 @@
 #define SYSTEM_MSXMUSIC    17
 #define SYSTEM_MSXAUDIO    18
 #define SYSTEM_HIRES       19
+#define SYSTEM_OSI         20
 
 #define OPTION_DISPLAY_MODE  1
 #define OPTION_FRAME_LIMITER 2
@@ -81,6 +83,7 @@ int Use2413 = 0; /* Stub variables */
 int Use8950 = 0;
 #endif
 
+int ShowStatus=0;
 int DisplayMode;
 int FrameLimiter;
 int VSync;
@@ -131,10 +134,6 @@ static int  SaveOptions();
 static PspImage* LoadStateIcon(const char *path);
 static int LoadState(const char *path);
 static PspImage* SaveState(const char *path, const PspImage *icon);
-
-// TODO: 
-#define WIDTH  272
-#define HEIGHT 228
 
 #define CART_TYPE_AUTODETECT 8
 
@@ -413,16 +412,19 @@ static const PspMenuItemDef
     MENU_HEADER("Drives"),
     MENU_ITEM("Drive A", SYSTEM_DRIVE_A, CartNameOptions, 0, EmptyDeviceText),
     MENU_ITEM("Drive B", SYSTEM_DRIVE_B, CartNameOptions, 0, EmptyDeviceText),
-    MENU_HEADER("Configuration"),
-    MENU_ITEM("System", SYSTEM_MODEL,ModelOptions, -1, 
+    MENU_HEADER("System"),
+    MENU_ITEM("Model", SYSTEM_MODEL,ModelOptions, -1, 
       "\026\250\020 Select MSX model"),
     MENU_ITEM("CPU Timing", SYSTEM_TIMING, TimingOptions, -1,
       "\026\250\020 Select video timing mode (PAL/NTSC)"),
-    MENU_ITEM("System RAM", SYSTEM_RAMPAGES, RAMOptions, -1, 
+    MENU_ITEM("RAM", SYSTEM_RAMPAGES, RAMOptions, -1, 
       "\026\250\020 Change amount of system memory"),
-    MENU_ITEM("System VRAM", SYSTEM_VRAMPAGES, VRAMOptions, -1, 
+    MENU_ITEM("Video RAM", SYSTEM_VRAMPAGES, VRAMOptions, -1, 
       "\026\250\020 Change amount of video memory"),
-    MENU_HEADER("System"),
+    MENU_HEADER("Interface"),
+    MENU_ITEM("On-screen Indicators", SYSTEM_OSI,ToggleOptions, -1, 
+      "\026\250\020 Show/hide on-screen indicators (floppy, etc...)"),
+    MENU_HEADER("Options"),
     MENU_ITEM("Reset", SYSTEM_RESET, NULL, -1, "\026\001\020 Reset MSX" ),
     MENU_ITEM("Save screenshot",  SYSTEM_SCRNSHOT, NULL,  -1, 
       "\026\001\020 Save screenshot"),
@@ -659,7 +661,7 @@ void InitMenu()
   UiMetric.ScrollbarBgColor = 0x44ffffff;
   UiMetric.ScrollbarWidth = 10;
   UiMetric.TextColor = PSP_COLOR_GRAY;
-  UiMetric.SelectedColor = COLOR(0xaa,0xaa,0xff,0xff);
+  UiMetric.SelectedColor = COLOR(0xff,0xff,0,0xff);
   UiMetric.SelectedBgColor = COLOR(0,0,0,0x55);
   UiMetric.StatusBarColor = PSP_COLOR_WHITE;
   UiMetric.BrowserFileColor = PSP_COLOR_GRAY;
@@ -675,8 +677,9 @@ void InitMenu()
   UiMetric.TitlePadding = 4;
   UiMetric.TitleColor = PSP_COLOR_WHITE;
   UiMetric.MenuFps = 30;
-  UiMetric.TabBgColor = COLOR(0xca,0xca,0xff,0xff);
+  UiMetric.TabBgColor = PSP_COLOR_WHITE;
 
+  /* If this is going to take a while... */
   if (Use2413 || Use8950) 
     pspUiFlashMessage("Initializing sound emulation, please wait...");
 }
@@ -912,6 +915,9 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item,
           return 0;
     		}
       }
+      break;
+    case SYSTEM_OSI:
+      ShowStatus = (int)option->Value;
       break;
     }
   }
@@ -1172,6 +1178,7 @@ static void LoadOptions()
   VSync = pspInitGetInt(init, "Video", "VSync", 0);
   ClockFreq = pspInitGetInt(init, "Video", "PSP Clock Frequency", 222);
   ShowFps = pspInitGetInt(init, "Video", "Show FPS", 0);
+  ShowStatus = pspInitGetInt(init, "Video", "Show Status Indicators", 1);
   ControlMode = pspInitGetInt(init, "Menu", "Control Mode", 0);
   UiMetric.Animate = pspInitGetInt(init, "Menu", "Animate", 1);
 
@@ -1218,6 +1225,7 @@ static int SaveOptions()
   pspInitSetInt(init, "Video", "VSync", VSync);
   pspInitSetInt(init, "Video", "PSP Clock Frequency", ClockFreq);
   pspInitSetInt(init, "Video", "Show FPS", ShowFps);
+  pspInitSetInt(init, "Video", "Show Status Indicators", ShowStatus);
   pspInitSetInt(init, "Menu", "Control Mode", ControlMode);
   pspInitSetInt(init, "Menu", "Animate", UiMetric.Animate);
 
@@ -1291,6 +1299,8 @@ void DisplayMenu()
       pspMenuSelectOptionByValue(item, (void*)Use8950);
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_MSXMUSIC);
       pspMenuSelectOptionByValue(item, (void*)Use2413);
+      item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_OSI);
+      pspMenuSelectOptionByValue(item, (void*)ShowStatus);
 
       pspUiOpenMenu(&SystemUiMenu, NULL);
       break;

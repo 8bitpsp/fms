@@ -30,4 +30,3 @@ TARGET=fmsxpsp
 PSP_EBOOT_ICON=data/fmsx-icon.png
 
 include Common.mak
-

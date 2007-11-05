@@ -25,6 +25,7 @@
 #include "util.h"
 #include "fileio.h"
 #include "MenuPsp.h"
+#include "Psp.h"
 #include "LibPsp.h"
 
 /** PSP SDK includes *****************************************/
@@ -43,14 +44,10 @@ extern int FrameLimiter;
 extern int VSync;
 extern int ShowFps;
 extern int HiresEnabled;
+extern int ShowStatus;
 extern char *ScreenshotPath;
 
 /** Various variables ****************************************/
-#define HIRES_WIDTH 512
-#define WIDTH       272
-#define HEIGHT      228
-/* TODO: for HIRES_WIDTH add 8 pixel border on each side */
-
 typedef unsigned short pixel;
 
 static unsigned int BPal[256],XPal[80],XPal0; 
@@ -63,6 +60,7 @@ static int SndSwitch = (1<<MAXCHANNELS)-1;
 static int SndVolume = 255/MAXCHANNELS;
 #endif
 
+extern WD1793 FDC;
 extern char *ROM[MAXCARTS];
 extern char *Drive[MAXDRIVES];
 extern const u64 ButtonMask[];
@@ -84,8 +82,9 @@ static u32 TicksPerSecond;
 static u64 LastTick;
 static u64 CurrentTick;
 static int Frame;
-static int ClearBufferCount;
+static int ClearScreen;
 static int LastScrMode=-1;
+static int IconFlashed;
 
 static int PrevDiskHeld;
 static int NextDiskHeld;
@@ -140,7 +139,7 @@ int InitMachine(void)
   PrevDiskHeld=0;
   MessageTimer=0;
   pspPerfInitFps(&FpsCounter);
-  ClearBufferCount=0;
+  ClearScreen=0;
 
   /* Reset the palette */
   for(J=0;J<16;J++) XPal[J]=0;
@@ -200,9 +199,9 @@ void PutImage(void)
   pspVideoBegin();
 
   /* Clear the buffer first, if necessary */
-  if (ClearBufferCount > 0)
+  if (ClearScreen >= 0)
   {
-    ClearBufferCount--;
+    ClearScreen--;
     pspVideoClearScreen();
   }
 
@@ -227,7 +226,7 @@ void PutImage(void)
     pspVideoPrint(&PspStockFont, 0, 0, Message, PSP_COLOR_WHITE);
 
     if (MessageTimer < 1) 
-      ClearBufferCount = 2;
+      ClearScreen = 1;
   }
 
   /* Display FPS */
@@ -243,6 +242,18 @@ void PutImage(void)
 
     pspVideoFillRect(SCR_WIDTH - width, 0, SCR_WIDTH, height, PSP_COLOR_BLACK);
     pspVideoPrint(&PspStockFont, SCR_WIDTH - width, 0, fps_display, PSP_COLOR_WHITE);
+  }
+
+  /* Status indicators */
+  if (ShowStatus)
+  {
+    /* "Disk busy" indicator */
+    if (FDC.R[0]&F_BUSY)
+    {
+      IconFlashed = 1;
+      pspVideoPrint(&PspStockFont, 0, 0, PSP_CHAR_FLOPPY, PSP_COLOR_RED);
+    }
+    else if (IconFlashed) ClearScreen = 1;
   }
 
   pspVideoEnd();
@@ -406,8 +417,9 @@ static void OpenMenu()
 
   Frame = 0;
   ShowKybdHeld = 0;
-  ClearBufferCount = 2;
+  ClearScreen = 1;
   PrevDiskHeld = NextDiskHeld = 0;
+  IconFlashed = 0;
 
   /* Reinitialize input matrix & resume sound */
   ResetInput();
@@ -442,7 +454,8 @@ static void SwitchVolume(char *drive, int vol_iter)
           if (ChangeDisk(0, disk))
           {
             drive[pos] = disk[pos];
-            sprintf(Message, "\026\274 %i", next_dsk);
+            sprintf(Message, "\026"PSP_CHAR_FLOPPY" %i > %i", 
+              curr_dsk, next_dsk);
           }
           else
           {
@@ -477,7 +490,7 @@ static void HandleSpecialInput(int code, int on)
       if (on) pspKybdReinit(KeyLayout);
       else
       {
-        ClearBufferCount = 2;
+        ClearScreen = 1;
         pspKybdReleaseAll(KeyLayout);
       }
     }
@@ -538,7 +551,7 @@ void ResetView()
   ScreenY=(SCR_HEIGHT / 2)-(ScreenH / 2);
 
   LastScrMode=ScrMode;
-  ClearBufferCount=2;
+  ClearScreen=1;
 }
 
 #include "Common.h"
