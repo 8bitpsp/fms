@@ -162,6 +162,8 @@ void ResetSound()
 /*************************************************************/
 void TrashAudio(void)
 {
+  if (!SndRate) return;
+
 #if defined(FMSX) && defined(ALTSOUND)
   /* clean up MSXMUSIC */
   if (Use2413)
@@ -182,13 +184,6 @@ void TrashAudio(void)
   StopSound();
   SndRate = 0;
 }
-
-/** RenderAudio() ********************************************/
-/** Render given number of melodic sound samples into an    **/
-/** integer buffer for mixing.                              **/
-/*************************************************************/
-void RenderAudio(int *Wave,unsigned int Samples)
-{ /* Stub; audio is rendered via a callback */ }
 
 /** AudioCallback() ******************************************/
 /** Called by the system to render sound                    **/

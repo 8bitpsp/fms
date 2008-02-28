@@ -61,6 +61,18 @@ void TrashSound(void);
 /*************************************************************/
 void RenderAudio(int *Wave,unsigned int Samples);
 
+/** PlayAudio() **********************************************/
+/** Normalize and play given number of samples from the mix **/
+/** buffer. Returns the number of samples actually played.  **/
+/*************************************************************/
+unsigned int PlayAudio(int *Wave,unsigned int Samples);
+
+/** RenderAndPlayAudio() *************************************/
+/** Render and play a given number of samples. Returns the  **/
+/** number of samples actually played.                      **/
+/*************************************************************/
+unsigned int RenderAndPlayAudio(unsigned int Samples);
+
 /** Sound() **************************************************/
 /** Generate sound of given frequency (Hz) and volume       **/
 /** (0..255) via given channel. Setting Freq=0 or Volume=0  **/

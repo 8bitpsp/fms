@@ -814,7 +814,7 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item,
       if ((int)option->Value != Use8950)
       {
         /* Restart sound engine */
-        TrashSound();
+        TrashAudio();
         if ((int)option->Value || Use2413)
           pspUiFlashMessage("Please wait, reinitializing sound engine...");
         Use8950 = (int)option->Value;
@@ -827,7 +827,7 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item,
       if ((int)option->Value != Use2413)
       {
         /* Restart sound engine */
-        TrashSound();
+        TrashAudio();
         if ((int)option->Value || Use8950)
           pspUiFlashMessage("Please wait, reinitializing sound engine...");
         Use2413 = (int)option->Value;

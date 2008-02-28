@@ -609,3 +609,172 @@ void TrashSound(void)
   TrashAudio();
 #endif
 }
+
+/** RenderAudio() ********************************************/
+/** Render given number of melodic sound samples into an    **/
+/** integer buffer for mixing.                              **/
+/*************************************************************/
+void RenderAudio(int *Wave,unsigned int Samples)
+{
+  register int N,J,K,I,L,L1,L2,V,A1,A2;
+
+  /* Exit if wave sound not initialized */
+  if(SndRate<8192) return;
+
+  /* Keep GCC happy about variable initialization */
+  N=L=A2=0;
+
+  /* Waveform generator */
+  for(J=0;J<SND_CHANNELS;J++)
+    if(WaveCH[J].Freq&&(V=WaveCH[J].Volume)&&(MasterSwitch&(1<<J)))
+      switch(WaveCH[J].Type)
+      {
+        case SND_WAVE: /* Custom Waveform */
+          /* Waveform data must have correct length! */
+          if(WaveCH[J].Length<=0) break;
+          /* Start counting */
+          K  = WaveCH[J].Rate>0? (SndRate<<15)/WaveCH[J].Freq/WaveCH[J].Rate
+                           : (SndRate<<15)/WaveCH[J].Freq/WaveCH[J].Length;
+          L1 = WaveCH[J].Pos%WaveCH[J].Length;
+          L2 = WaveCH[J].Count;
+          A1 = WaveCH[J].Data[L1]*V;
+          /* If expecting interpolation... */
+          if(L2<K)
+          {
+            /* Compute interpolation parameters */
+            A2 = WaveCH[J].Data[(L1+1)%WaveCH[J].Length]*V;
+            L  = (L2>>15)+1;
+            N  = ((K-(L2&0x7FFF))>>15)+1;
+          }
+          /* Add waveform to the buffer */
+          for(I=0;I<Samples;I++)
+            if(L2<K)
+            {
+              /* Interpolate linearly */
+              Wave[I]+=A1+L*(A2-A1)/N;
+              /* Next waveform step */
+              L2+=0x8000;
+              /* Next interpolation step */
+              L++;
+            }
+            else
+            {
+              L1 = (L1+L2/K)%WaveCH[J].Length;
+              L2 = (L2%K)+0x8000;
+              A1 = WaveCH[J].Data[L1]*V;
+              Wave[I]+=A1;
+              /* If expecting interpolation... */
+              if(L2<K)
+              {
+                /* Compute interpolation parameters */
+                A2 = WaveCH[J].Data[(L1+1)%WaveCH[J].Length]*V;
+                L  = 1;
+                N  = ((K-L2)>>15)+1;
+              }
+            }
+          /* End counting */
+          WaveCH[J].Pos   = L1;
+          WaveCH[J].Count = L2;
+          break;
+
+        case SND_NOISE: /* White Noise */
+          /* For high frequencies, recompute volume */
+          if(WaveCH[J].Freq<=SndRate) K=0x10000*WaveCH[J].Freq/SndRate;
+          else { V=V*SndRate/WaveCH[J].Freq;K=0x10000; }
+          L1=WaveCH[J].Count;
+          for(I=0;I<Samples;I++)
+          {
+            L1+=K;
+            if(L1&0xFFFF0000)
+            {
+              if((NoiseGen<<=1)&0x80000000) NoiseGen^=0x08000001;
+              L1&=0xFFFF;
+            }
+            Wave[I]+=(NoiseGen&1? 127:-128)*V;
+          }
+          WaveCH[J].Count=L1;
+          break;
+
+        case SND_MELODIC:  /* Melodic Sound   */
+        case SND_TRIANGLE: /* Triangular Wave */
+        default:           /* Default Sound   */
+          /* Do not allow frequencies that are too high */
+          if(WaveCH[J].Freq>=SndRate/2) break;
+          K=0x10000*WaveCH[J].Freq/SndRate;
+          L1=WaveCH[J].Count;
+          for(I=0;I<Samples;I++,L1+=K)
+            Wave[I]+=(L1&0x8000? 127:-128)*V;
+          WaveCH[J].Count=L1&0xFFFF;
+          break;
+      }
+}
+
+/** PlayAudio() **********************************************/
+/** Normalize and play given number of samples from the mix **/
+/** buffer. Returns the number of samples actually played.  **/
+/*************************************************************/
+unsigned int PlayAudio(int *Wave,unsigned int Samples)
+{
+  sample Buf[256];
+  unsigned int I,J,K;
+  int D;
+
+  /* Exit if wave sound not initialized */
+  if(SndRate<8192) return(0);
+
+  /* Check if the buffer contains enough free space */
+  J = GetFreeAudio();
+  if(J<Samples) Samples=J;
+
+  /* Spin until all samples played or WriteAudio() fails */
+  for(K=I=J=0;(K<Samples)&&(I==J);K+=I)
+  {
+    /* Compute number of samples to convert */
+    J = sizeof(Buf)/sizeof(sample);
+    J = Samples<=J? Samples:J;
+
+    /* Convert samples */
+    for(I=0;I<J;++I)
+    {
+      D      = ((*Wave++)*MasterVolume)/255;
+      D      = D>32767? 32767:D<-32768? -32768:D;
+#ifdef BPS16
+      Buf[I] = D;
+#else
+      Buf[I] = D>>8;
+#endif
+    }
+
+    /* Play samples */
+    I = WriteAudio(Buf,J);
+  }
+
+  /* Return number of samples played */
+  return(K);
+}
+
+/** RenderAndPlayAudio() *************************************/
+/** Render and play a given number of samples. Returns the  **/
+/** number of samples actually played.                      **/
+/*************************************************************/
+unsigned int RenderAndPlayAudio(unsigned int Samples)
+{
+  int Buf[256];
+  unsigned int J,I;
+
+  /* Exit if wave sound not initialized */
+  if(SndRate<8192) return(0);
+
+  /* Render and play sound */
+  for(I=0;(I<Samples)&&(J=GetFreeAudio());I+=J)
+  {
+    J = J<Samples? J:Samples;
+    J = J<sizeof(Buf)/sizeof(Buf[0])? J:sizeof(Buf)/sizeof(Buf[0]);
+    memset(Buf,0,J*sizeof(Buf[0]));
+    RenderAudio(Buf,J);
+    J = PlayAudio(Buf,J);
+  }
+
+  /* Return number of samples rendered */
+  return(I);
+}
