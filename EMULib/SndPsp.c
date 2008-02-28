@@ -13,6 +13,8 @@
 /**     changes to this file.                               **/
 /*************************************************************/
 
+#include <malloc.h>
+
 #if defined(FMSX) && defined(ALTSOUND)
 #include "fmopl.h"
 #include "emu2149.h"
@@ -22,38 +24,6 @@
 
 #include "audio.h"
 #include "Sound.h"
-
-static struct
-{
-  int Type;                       /* Channel type (SND_*)             */
-  int Freq;                       /* Channel frequency (Hz)           */
-  int Volume;                     /* Channel volume (0..255)          */
-
-  const signed char *Data;        /* Wave data (-128..127 each)       */
-  int Length;                     /* Wave length in Data              */
-  int Rate;                       /* Wave playback rate (or 0Hz)      */
-  int Pos;                        /* Wave current position in Data    */
-
-  int Count;                      /* Phase counter                    */
-} CH[SND_CHANNELS] =
-{
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 },
-  { SND_MELODIC,0,0,0,0,0,0 }
-};
 
 void AudioCallback(void* buf, unsigned int *length, void *userdata);
 
@@ -73,7 +43,10 @@ float FactorSCC  = 3.00;  /* Volume percentage of SCC        */
 float Factor2413 = 3.00;  /* Volume percentage of MSX-MUSIC  */
 float Factor8950 = 2.25;  /* Volume percentage of MSX-AUDIO  */
 #else
-static int Wave[SND_BUFSIZE];
+static int SndSize     = 0;  /* SndData[] size               */
+static sample *SndData = 0;  /* Audio buffers                */
+static int RPtr        = 0;  /* Read pointer into Bufs       */
+static int WPtr        = 0;  /* Write pointer into Bufs      */
 #endif
 
 static int SndRate     = 0;  /* Audio sampling rate          */
@@ -122,6 +95,23 @@ unsigned int InitAudio(unsigned int Rate,unsigned int Latency)
   SCC_init(MSX_CLK,Rate);
   scc=SCC_new();
   SCC_reset(scc);
+#else
+  register int J;
+
+  SndSize = 0;
+  SndData = 0;
+  RPtr    = 0;
+  WPtr    = 0;
+
+  /* Compute sound buffer size */
+  SndSize=(Rate*Latency/1000+SND_BUFSIZE-1);
+
+  /* Allocate audio buffers */
+  SndData=(sample *)malloc(SndSize*sizeof(sample));
+  if(!SndData) { TrashSound();return(0); }
+
+  /* Clear audio buffers */
+  for(J=0;J<SndSize;++J) SndData[J]=0;
 #endif
 
   /* Only 44100 supported */
@@ -129,19 +119,6 @@ unsigned int InitAudio(unsigned int Rate,unsigned int Latency)
 
   /* Done */
   return(SndRate = Rate);
-}
-
-/** PspSound() ***********************************************/
-/** Set sound volume and frequency for a given channel.     **/
-/*************************************************************/
-void PspSound(int Channel,int Freq,int Volume)
-{
-  if(!SndRate||(Channel<0)||(Channel>=SND_CHANNELS)) return;
-  Volume=Volume<0? 0:Volume>255? 255:Volume;
-
-  /* Store frequency and volume */
-  CH[Channel].Freq   = Freq;
-  CH[Channel].Volume = Volume;
 }
 
 /** ResetSound() *********************************************/
@@ -163,6 +140,7 @@ void ResetSound()
 void TrashAudio(void)
 {
   if (!SndRate) return;
+  SndRate = 0;
 
 #if defined(FMSX) && defined(ALTSOUND)
   /* clean up MSXMUSIC */
@@ -178,11 +156,19 @@ void TrashAudio(void)
   /* clean up PSG/SCC */
   PSG_delete(psg);
   SCC_delete(scc);
+#else
+  /* If buffers were allocated... */
+  if(SndData) free(SndData);
+
+  /* Sound trashed */
+  SndData = 0;
+  SndSize = 0;
+  RPtr    = 0;
+  WPtr    = 0;
 #endif
 
   /* Shutdown wave audio */
   StopSound();
-  SndRate = 0;
 }
 
 /** AudioCallback() ******************************************/
@@ -207,111 +193,53 @@ void AudioCallback(void* buf, unsigned int *length, void *userdata)
     (OutBuf++)->Channel = (R>32767)?32767:(R<-32768)?-32768:R;
   }
 #else
-  unsigned int Samples = *length;
-  register int N,J,K,I,L,L1,L2,V,A1,A2;
-
-  /* Reset some variables to keep compiler happy */
-  L=N=A2=0;
-
-  /* Truncate to available space */
-  J       = *length;
-  Samples = Samples>SND_BUFSIZE? SND_BUFSIZE:Samples;
-  Samples = Samples>J? J:Samples;
-  if(!Samples) return;
-
-  /* Clear mixing buffer */
-  for(J=0;J<Samples;J++) Wave[J]=0;
-
-  /* Waveform generator */
-  for(J=0;J<SND_CHANNELS;J++)
-    if(CH[J].Freq&&(V=CH[J].Volume)&&(MasterSwitch&(1<<J)))
-      switch(CH[J].Type)
-      {
-        case SND_WAVE: /* Custom Waveform */
-          /* Waveform data must have correct length! */
-          if(CH[J].Length<=0) break;
-          /* Start counting */
-          K  = CH[J].Rate>0? (SndRate<<15)/CH[J].Freq/CH[J].Rate
-                           : (SndRate<<15)/CH[J].Freq/CH[J].Length;
-          L1 = CH[J].Pos%CH[J].Length;
-          L2 = CH[J].Count;
-          A1 = CH[J].Data[L1]*V;
-          /* If expecting interpolation... */
-          if(L2<K)
-          {
-            /* Compute interpolation parameters */
-            A2 = CH[J].Data[(L1+1)%CH[J].Length]*V;
-            L  = (L2>>15)+1;
-            N  = ((K-(L2&0x7FFF))>>15)+1;
-          }
-          /* Add waveform to the buffer */
-          for(I=0;I<Samples;I++)
-            if(L2<K)
-            {
-              /* Interpolate linearly */
-              Wave[I]+=A1+L*(A2-A1)/N;
-              /* Next waveform step */
-              L2+=0x8000;
-              /* Next interpolation step */
-              L++;
-            }
-            else
-            {
-              L1 = (L1+L2/K)%CH[J].Length;
-              L2 = (L2%K)+0x8000;
-              A1 = CH[J].Data[L1]*V;
-              Wave[I]+=A1;
-              /* If expecting interpolation... */
-              if(L2<K)
-              {
-                /* Compute interpolation parameters */
-                A2 = CH[J].Data[(L1+1)%CH[J].Length]*V;
-                L  = 1;
-                N  = ((K-L2)>>15)+1;
-              }
-            }
-          /* End counting */
-          CH[J].Pos   = L1;
-          CH[J].Count = L2;
-          break;
-
-        case SND_NOISE: /* White Noise */
-          /* For high frequencies, recompute volume */
-          if(CH[J].Freq<=SndRate) K=0x10000*CH[J].Freq/SndRate;
-          else { V=V*SndRate/CH[J].Freq;K=0x10000; }
-          L1=CH[J].Count;
-          for(I=0;I<Samples;I++)
-          {
-            L1+=K;
-            if(L1&0xFFFF0000)
-            {
-              if((NoiseGen<<=1)&0x80000000) NoiseGen^=0x08000001;
-              L1&=0xFFFF;
-            }
-            Wave[I]+=(NoiseGen&1? 127:-128)*V;
-          }
-          CH[J].Count=L1;
-          break;
-
-        case SND_MELODIC:  /* Melodic Sound   */
-        case SND_TRIANGLE: /* Triangular Wave */
-        default:           /* Default Sound   */
-          /* Do not allow frequencies that are too high */
-          if(CH[J].Freq>=SndRate/2) break;
-          K=0x10000*CH[J].Freq/SndRate;
-          L1=CH[J].Count;
-          for(I=0;I<Samples;I++,L1+=K)
-            Wave[I]+=(L1&0x8000? 127:-128)*V;
-          CH[J].Count=L1&0xFFFF;
-          break;
-      }
+  register int J;
 
   /* Mix and convert waveforms */
-  for(J=0;J<Samples;J++)
+  for(J=0;J<*length;J++)
+    (OutBuf++)->Channel = SndData[J];
+
+  /* Advance buffer pointer, clearing the buffer */
+  for(J=0;J<SND_BUFSIZE;++J) SndData[RPtr++]=0;
+  if(RPtr>=SndSize) RPtr=0;
+#endif
+}
+
+/** GetFreeAudio() *******************************************/
+/** Get the amount of free samples in the audio buffer.     **/
+/*************************************************************/
+unsigned int GetFreeAudio(void)
+{
+#if defined(FMSX) && defined(ALTSOUND)
+  return(0);
+#else
+  return(!SndRate? 0:RPtr>=WPtr? RPtr-WPtr:RPtr-WPtr+SndSize);
+#endif
+}
+
+/** WriteAudio() *********************************************/
+/** Write up to a given number of samples to audio buffer.  **/
+/** Returns the number of samples written.                  **/
+/*************************************************************/
+unsigned int WriteAudio(sample *Data,unsigned int Length)
+{
+#if defined(FMSX) && defined(ALTSOUND)
+  return(0);
+#else
+  unsigned int J;
+
+  /* Require audio to be initialized */
+  if(!SndRate) return(0);
+
+  /* Copy audio samples */
+  for(J=0;(J<Length)&&(RPtr!=WPtr);++J)
   {
-    I=(Wave[J]*MasterVolume)/255;
-    (OutBuf++)->Channel = I>32767? 32767:I<-32768? -32768:I;
+    SndData[WPtr++]=Data[J];
+    if(WPtr>=SndSize) WPtr=0;
   }
+
+  /* Return number of samples copied */
+  return(J);
 #endif
 }
 

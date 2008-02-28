@@ -154,7 +154,7 @@ int InitMachine(void)
 
 #ifdef SOUND
   /* Initialize sound */
-  if(InitSound(UseSound, 0))
+  if(InitSound(UseSound, 150))
     SetChannels(SndVolume,SndSwitch);
 #endif
 
@@ -172,7 +172,6 @@ int InitMachine(void)
 void TrashMachine(void)
 {
 #ifdef SOUND
-  StopSound();
   TrashSound();
 #endif
 
@@ -313,6 +312,11 @@ void Keyboard(void)
   }
 
   SceCtrlData pad;
+
+#ifndef ALTSOUND
+  /* Rendering audio here */
+  RenderAndPlayAudio(GetFreeAudio());
+#endif
 
   /* Check the input */
   if (pspCtrlPollControls(&pad))
