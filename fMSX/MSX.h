@@ -6,7 +6,7 @@
 /** and MSX emulation itself. See Z80.h for #defines        **/
 /** related to Z80 emulation.                               **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1994-2007                 **/
+/** Copyright (C) Marat Fayzullin 1994-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -155,11 +155,11 @@ extern "C" {
 /*************************************************************/
 
 /** Keyboard codes and macros ********************************/
-extern const byte Keys[128][2];
-extern volatile byte KeyMap[16];
+extern const byte Keys[130][2];
+extern volatile byte KeyState[16];
 
-#define KBD_SET(K)   KeyMap[Keys[K][0]]&=~Keys[K][1]
-#define KBD_RES(K)   KeyMap[Keys[K][0]]|=Keys[K][1]
+#define KBD_SET(K)   KeyState[Keys[K][0]]&=~Keys[K][1]
+#define KBD_RES(K)   KeyState[Keys[K][0]]|=Keys[K][1]
 
 #define KBD_LEFT     0x01
 #define KBD_UP       0x02
@@ -193,8 +193,8 @@ extern volatile byte KeyMap[16];
 #define KBD_NUMPAD6  0x1E
 #define KBD_NUMPAD7  0x1F
 #define KBD_SPACE    0x20
-#define KBD_NUMPAD8  0x21
-#define KBD_NUMPAD9  0x22
+#define KBD_NUMPAD8  0x80
+#define KBD_NUMPAD9  0x81
 /*************************************************************/
 
 /** Following macros can be used in screen drivers ***********/
@@ -222,6 +222,10 @@ extern byte Verbose;                  /* Debug msgs ON/OFF   */
 extern int  Mode;                     /* ORed MSX_* bits     */
 extern int  RAMPages,VRAMPages;       /* Number of RAM pages */
 extern byte UPeriod;                  /* % of frames to draw */
+/*************************************************************/
+
+/** Screen Mode Handlers [number of screens + 1] *************/
+extern void (*RefreshLine[MAXSCREEN+2])(byte Y);
 /*************************************************************/
 
 extern Z80  CPU;                      /* CPU state/registers */

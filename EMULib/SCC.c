@@ -5,7 +5,7 @@
 /** This file contains emulation for the SCC sound chip     **/
 /** produced by Konami.                                     **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2007                 **/
+/** Copyright (C) Marat Fayzullin 1996-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/

@@ -25,7 +25,6 @@
 #include "util.h"
 #include "fileio.h"
 #include "MenuPsp.h"
-#include "Psp.h"
 #include "LibPsp.h"
 
 /** PSP SDK includes *****************************************/
@@ -278,7 +277,7 @@ void PutImage(void)
 /*************************************************************/
 static int GetKeyStatus(unsigned int code)
 {
-  return !(KeyMap[Keys[code][0]] & Keys[code][1]);
+  return !(KeyState[Keys[code][0]] & Keys[code][1]);
 }
 
 /** HandleKeyboardInput() ************************************/
@@ -388,7 +387,7 @@ void SetColor(register byte N,register byte R,register byte G,register byte B)
 static void ResetInput()
 {
   JoyState=0x00;
-  memset((void*)KeyMap, 0xFF, sizeof(KeyMap));
+  memset((void*)KeyState, 0xFF, sizeof(KeyState));
 }
 
 /** OpenMenu() ***********************************************/

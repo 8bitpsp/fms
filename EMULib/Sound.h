@@ -6,13 +6,16 @@
 /** functions needed to log soundtrack into a MIDI file.    **/
 /** See Sound.c and the sound drivers for the code.         **/ 
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2007                 **/
+/** Copyright (C) Marat Fayzullin 1996-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
 /*************************************************************/
 #ifndef SOUND_H
 #define SOUND_H
+
+#include "EMULib.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,11 +45,21 @@ extern "C" {
 #define MIDI_TOGGLE     2      /* Toggle MIDI logging        */
 #define MIDI_QUERY      3      /* Query MIDI logging status  */
 
+/** InitSound() **********************************************/
+/** Initialize RenderSound() with given parameters.         **/
+/*************************************************************/
+unsigned int InitSound(unsigned int Rate,unsigned int Latency);
+
 /** TrashSound() *********************************************/
-/** Shut down sound driver. Each driver implements its own  **/
-/** TrashSound() function.                                  **/
+/** Shut down RenderSound() driver.                         **/
 /*************************************************************/
 void TrashSound(void);
+
+/** RenderAudio() ********************************************/
+/** Render given number of melodic sound samples into an    **/
+/** integer buffer for mixing.                              **/
+/*************************************************************/
+void RenderAudio(int *Wave,unsigned int Samples);
 
 /** Sound() **************************************************/
 /** Generate sound of given frequency (Hz) and volume       **/
@@ -116,136 +129,9 @@ int MIDILogging(int Switch);
 /*************************************************************/
 void MIDITicks(int N);
 
-#ifdef UNIX
-#define SND_CHANNELS    16   /* Number of channels           */
-#define SND_SAMPLESIZE  256  /* Max. SetWave() sample size   */
-#define SND_BUFSIZE     256  /* Buffer size, <= 2^SND_BITS   */
-#define SND_BITS        8    /* Number of bits in a fragment */
-#define SND_BUFFERS     64   /* Number of fragments, >= 2    */
-    /* Bigger value results in better behaviour on loaded    */
-    /* but output gets more delayed.                         */
-
-/** InitSound() **********************************************/
-/** Initialize Unix sound driver with given synthesis rate. **/
-/** Returns Rate on success, 0 otherwise. Pass Rate=0 to    **/
-/** skip initialization and be silent. Pass Verbose!=0 to   **/
-/** see initialization messages.                            **/
-/*************************************************************/
-int InitSound(int Rate,int Verbose);
-
-/** StopSound() **********************************************/
-/** Temporarily suspend sound.                              **/
-/*************************************************************/
-void StopSound(void);
-
-/** ResumeSound() ********************************************/
-/** Resume sound after StopSound().                         **/
-/*************************************************************/
-void ResumeSound(void);
-#endif /* UNIX */
-
-#ifdef MSDOS
-#define SND_CHANNELS    16     /* Number of sound channels   */
-#define OPL_CHANNELS    7      /* Number of Adlib channels   */
-#define SND_SAMPLESIZE  256    /* Max. SetWave() sample size */
-#define SND_BUFSIZE     512    /* Buffer size for DMA        */
-#define SND_MAXDELAY    10     /* Maximal sound delay 1/n s  */
-
-/** InitSound() **********************************************/
-/** Initialize sound. Returns Rate on success, 0 otherwise. **/
-/** Rate=0 to skip initialization (will be silent).         **/
-/*************************************************************/
-int InitSound(unsigned int Rate,unsigned int Latency);
-#endif /* MSDOS */
-
-#ifdef WINDOWS
-#define SND_CHANNELS    16     /* Number of channels         */
-#define SND_SAMPLESIZE  256    /* Max. SetWave() sample size */
-#define SND_BUFSIZE     512    /* Size of a wave buffer      */
-#define SND_BUFFERS     32     /* Number of wave buffers     */
-
-#include <Windows.h>
-
-/** InitSound() **********************************************/
-/** Initialize Windows sound driver with given synthesis    **/
-/** rate. Returns Rate on success, 0 otherwise. Pass Rate=0 **/
-/** to skip initialization and be silent. Pass Rate=1 to    **/
-/** use MIDI (midiOut). Pass Rate=8192..44100 to use wave   **/
-/** synthesis (waveOut). Number of wave synthesis buffers   **/
-/** must be in 2..SND_BUFFERS range.                        **/
-/*************************************************************/
-unsigned int InitSound(unsigned int Rate,unsigned int Delay);
-#endif /* WINDOWS */
-
-#ifdef PSP
-#include "audio.h"
-
-#define SND_CHANNELS    16     /* Number of channels         */
-#define SND_BUFSIZE     512    /* Size of a wave buffer      */
-
-/** InitSound() **********************************************/
-/** Initialize PSP sound driver with given synthesis        **/
-/** rate. Returns Rate on success, 0 otherwise.             **/
-/*************************************************************/
-unsigned int InitSound(unsigned int Rate,unsigned int Delay);
-
-/** RenderAudio() ********************************************/
-/** Render given number of melodic sound samples. Returns   **/
-/** number of samples actually rendered.                    **/
-/*************************************************************/
-unsigned int RenderAudio(unsigned int Samples);
-
-/** StopSound() **********************************************/
-/** Temporarily suspend sound.                              **/
-/*************************************************************/
-void StopSound(void);
-
-/** StopSound() **********************************************/
-/** Reset sound chips.                                      **/
-/*************************************************************/
-void ResetSound(void);
-
-/** ResumeSound() ********************************************/
-/** Resume sound after StopSound().                         **/
-/*************************************************************/
-void ResumeSound(void);
-
-#if defined(FMSX) && defined(ALTSOUND)
-void WritePSG(int R,int V);
-void WriteSNG(int R,int V);
-void Write2212(int R,int V);
-void WriteOPLL(int R,int V);
-void WriteAUDIO(int R,int V);
-int  ReadAUDIO(int R);
-int  ReadPSG(int R);
-#endif
-
-#endif /* PSP */
-
-#ifndef MSDOS
-#ifndef WINDOWS
-#ifndef UNIX
-#ifndef PSP
+#if !defined(MSDOS) & !defined(UNIX) & !defined(WINDOWS) & !defined(S60) & !defined(UIQ)
 #define SND_CHANNELS MIDI_CHANNELS         /* Default number */
 #endif
-#endif
-#endif
-#endif
-
-#ifdef S60
-/** InitSound() **********************************************/
-/** Initialize Series60 sound driver with given synthesis   **/
-/** rate. Returns Rate on success, 0 otherwise. Pass Rate=0 **/
-/** to skip initialization and be silent.                   **/
-/*************************************************************/
-unsigned int InitSound(unsigned int Rate,unsigned int Delay);
-#endif
-
-/** RenderAudio() ********************************************/
-/** Render given number of melodic sound samples. Returns   **/
-/** number of samples actually rendered.                    **/
-/*************************************************************/
-unsigned int RenderAudio(unsigned int Samples);
 
 /** SndDriver ************************************************/
 /** Each sound driver should fill this structure with       **/

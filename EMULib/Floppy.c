@@ -5,7 +5,7 @@
 /** This file implements functions to operate on 720kB      **/
 /** floppy disk images. See Floppy.h for declarations.      **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 2004-2007                 **/
+/** Copyright (C) Marat Fayzullin 2004-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -15,15 +15,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
-#if defined(S60) || defined(UNIX) || defined(PSP)
+#if defined(UIQ) || defined(S60) || defined(UNIX) || defined(PSP)
 #include <dirent.h>
 #else
 #include <direct.h>
-#endif
-
-#if defined(MSDOS) || defined(WINDOWS) || defined(S60) || defined(PSP)
-#include <sys/stat.h>
 #endif
 
 #ifdef ZLIB
@@ -186,7 +183,7 @@ int DSKFile(byte *Dsk,const char *FileName)
 /*************************************************************/
 const char *DSKFileName(const byte *Dsk,int ID)
 {
-  const char *Name;
+  const unsigned char *Name;
 
   /* Can't have ID that is out of bounds */
   if((ID<1)||(ID>DSK_DIR_SIZE)) return(0);

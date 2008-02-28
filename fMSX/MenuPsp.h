@@ -14,6 +14,10 @@
 #ifndef _MENUPSP_H
 #define _MENUPSP_H
 
+#define HIRES_WIDTH 512 /* TODO: add 8 pixel border on each side */
+#define WIDTH       272
+#define HEIGHT      228
+
 #define KBD 0x100
 #define JST 0x200
 #define SPC 0x400

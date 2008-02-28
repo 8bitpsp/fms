@@ -7,7 +7,7 @@
 /** etc. Initialization code and definitions needed for the **/
 /** machine-dependent drivers are also here.                **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1994-2007                 **/
+/** Copyright (C) Marat Fayzullin 1994-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -142,7 +142,7 @@ int  KanLetter;                    /* Current letter index   */
 byte KanCount;                     /* Byte count 0..31       */
 
 /** Keyboard, joystick, and mouse ****************************/
-volatile byte KeyMap[16];          /* Keyboard map           */
+volatile byte KeyState[16];        /* Keyboard map state     */
 word JoyState;                     /* Joystick states        */
 int  MouState[2];                  /* Mouse states           */
 byte MouseDX[2],MouseDY[2];        /* Mouse offsets          */
@@ -202,7 +202,7 @@ static const byte CartMap[4][4] =
 { { 255,3,4,5 },{ 0,0,0,0 },{ 1,1,1,1 },{ 2,255,255,255 } };
 
 /** Screen Mode Handlers [number of screens + 1] *************/
-static const void (*RefreshLine[MAXSCREEN+2])(byte Y) =
+void (*RefreshLine[MAXSCREEN+2])(byte Y) =
 {
   RefreshLine0,   /* SCR 0:  TEXT 40x24  */
   RefreshLine1,   /* SCR 1:  TEXT 32x24  */
@@ -249,7 +249,7 @@ static const char *ROMNames[MAXMAPPERS+1] =
 
 /** Keyboard Mapping *****************************************/
 /** This keyboard mapping is used by KBD_SET()/KBD_RES()    **/
-/** macros to modify KeyMap[] bits.                         **/
+/** macros to modify KeyState[] bits.                       **/
 /*************************************************************/
 const byte Keys[][2] =
 {
@@ -261,30 +261,31 @@ const byte Keys[][2] =
   { 6,0x80 },{ 7,0x01 },{ 7,0x02 },{ 9,0x08 }, /* F3,F4,F5,PAD0 */
   { 9,0x10 },{ 9,0x20 },{ 9,0x40 },{ 7,0x04 }, /* PAD1,PAD2,PAD3,ESCAPE */
   { 9,0x80 },{ 10,0x01 },{ 10,0x02 },{ 10,0x04 }, /* PAD4,PAD5,PAD6,PAD7 */
-  { 8,0x01 },{ 10,0x08 },{ 10,0x10 },{ 0,0x00 }, /* SPACE,PAD8,PAD9,None */
-  { 0,0x00 },{ 0,0x00 },{ 0,0x00 },{ 2,0x01 }, /* None,None,None,['] */
-  { 0,0x00 },{ 0,0x00 },{ 0,0x00 },{ 0,0x00 }, /* 0x28 */
+  { 8,0x01 },{ 0,0x02 },{ 2,0x01 },{ 0,0x08 }, /* SPACE,[!],["],[#] */
+  { 0,0x10 },{ 0,0x20 },{ 0,0x80 },{ 2,0x01 }, /* [$],[%],[&],['] */
+  { 1,0x02 },{ 0,0x01 },{ 1,0x01 },{ 1,0x08 }, /* [(],[)],[*],[=] */
   { 2,0x04 },{ 1,0x04 },{ 2,0x08 },{ 2,0x10 }, /* [,],[-],[.],[/] */
   { 0,0x01 },{ 0,0x02 },{ 0,0x04 },{ 0,0x08 }, /* 0,1,2,3 */
   { 0,0x10 },{ 0,0x20 },{ 0,0x40 },{ 0,0x80 }, /* 4,5,6,7 */
-  { 1,0x01 },{ 1,0x02 },{ 0,0x00 },{ 1,0x80 }, /* 8,9,None,[;] */
-  { 0,0x00 },{ 1,0x08 },{ 0,0x00 },{ 0,0x00 }, /* None,[=],None,None */
-  { 0,0x00 },{ 2,0x40 },{ 2,0x80 },{ 3,0x01 }, /* None,A,B,C */
+  { 1,0x01 },{ 1,0x02 },{ 1,0x80 },{ 1,0x80 }, /* 8,9,[:],[;] */
+  { 2,0x04 },{ 1,0x08 },{ 2,0x08 },{ 2,0x10 }, /* [<],[=],[>],[?] */
+  { 0,0x04 },{ 2,0x40 },{ 2,0x80 },{ 3,0x01 }, /* [@],A,B,C */
   { 3,0x02 },{ 3,0x04 },{ 3,0x08 },{ 3,0x10 }, /* D,E,F,G */
   { 3,0x20 },{ 3,0x40 },{ 3,0x80 },{ 4,0x01 }, /* H,I,J,K */
   { 4,0x02 },{ 4,0x04 },{ 4,0x08 },{ 4,0x10 }, /* L,M,N,O */
   { 4,0x20 },{ 4,0x40 },{ 4,0x80 },{ 5,0x01 }, /* P,Q,R,S */
   { 5,0x02 },{ 5,0x04 },{ 5,0x08 },{ 5,0x10 }, /* T,U,V,W */
   { 5,0x20 },{ 5,0x40 },{ 5,0x80 },{ 1,0x20 }, /* X,Y,Z,[[] */
-  { 1,0x10 },{ 1,0x40 },{ 0,0x00 },{ 0,0x00 }, /* [\],[]],None,None */
+  { 1,0x10 },{ 1,0x40 },{ 0,0x40 },{ 1,0x04 }, /* [\],[]],[^],[_] */
   { 2,0x02 },{ 2,0x40 },{ 2,0x80 },{ 3,0x01 }, /* [`],a,b,c */
   { 3,0x02 },{ 3,0x04 },{ 3,0x08 },{ 3,0x10 }, /* d,e,f,g */
   { 3,0x20 },{ 3,0x40 },{ 3,0x80 },{ 4,0x01 }, /* h,i,j,k */
   { 4,0x02 },{ 4,0x04 },{ 4,0x08 },{ 4,0x10 }, /* l,m,n,o */
   { 4,0x20 },{ 4,0x40 },{ 4,0x80 },{ 5,0x01 }, /* p,q,r,s */
   { 5,0x02 },{ 5,0x04 },{ 5,0x08 },{ 5,0x10 }, /* t,u,v,w */
-  { 5,0x20 },{ 5,0x40 },{ 5,0x80 },{ 0,0x00 }, /* x,y,z,None */
-  { 0,0x00 },{ 0,0x00 },{ 0,0x00 },{ 0,0x00 }  /* 0x7C */
+  { 5,0x20 },{ 5,0x40 },{ 5,0x80 },{ 1,0x20 }, /* x,y,z,[{] */
+  { 1,0x10 },{ 1,0x40 },{ 2,0x02 },{ 8,0x08 }, /* [|],[}],[~],DEL */
+  { 10,0x08 },{ 10,0x10 }                      /* PAD8,PAD9 */
 };
 
 /** Internal Functions ***************************************/
@@ -559,7 +560,7 @@ int StartMSX(int NewMode,int NewRAMPages,int NewVRAMPages)
 
   /* Open stream for a printer */
   if(Verbose)
-    printf("Redirecting printer output to %s...OK",PrnName? PrnName:"STDOUT");
+    printf("Redirecting printer output to %s...OK\n",PrnName? PrnName:"STDOUT");
   ChangePrinter(PrnName);
 
   /* Open streams for serial IO */
@@ -850,8 +851,8 @@ int ResetMSX(int NewMode,int NewRAMPages,int NewVRAMPages)
         for(J=0;DiskPatches[J];++J)
         {
           if(Verbose) printf("%04X..",DiskPatches[J]);
-          P1=MemMap[3][1][2]+DiskPatches[J]-0x4000;
-          P1[0]=0xED;P1[1]=0xFE;P1[2]=0xC9;
+          P2=P1+DiskPatches[J]-0x4000;
+          P2[0]=0xED;P2[1]=0xFE;P2[2]=0xC9;
         }
         PRINTOK;
       }
@@ -971,7 +972,7 @@ int ResetMSX(int NewMode,int NewRAMPages,int NewVRAMPages)
   memcpy(VDPStatus,VDPSInit,sizeof(VDPStatus));
 
   /* Reset keyboard */
-  memset((void *)KeyMap,0xFF,16);
+  memset((void *)KeyState,0xFF,16);
 
   /* Set initial palette */
   for(J=0;J<16;++J)
@@ -1121,7 +1122,7 @@ case 0xA8: /* Primary slot state   */
 case 0xA9: /* Keyboard port        */
 case 0xAA: /* General IO register  */
 case 0xAB: /* PPI control register */
-  PPI.Rin[1]=KeyMap[PPI.Rout[2]&0x0F];
+  PPI.Rin[1]=KeyState[PPI.Rout[2]&0x0F];
   return(Read8255(&PPI,Port-0xA8));
 
 case 0xFC: /* Mapper page at 0000h */
@@ -3373,6 +3374,14 @@ int LoadSTA(const char *FileName)
   BGColor  = VDP[7]&0x0F;
   XFGColor = FGColor;
   XBGColor = BGColor;
+
+  /* All sound channels could have been changed */
+  PSG.Changed     = (1<<AY8910_CHANNELS)-1;
+  SCChip.Changed  = (1<<SCC_CHANNELS)-1;
+  SCChip.WChanged = (1<<SCC_CHANNELS)-1;
+  OPLL.Changed    = (1<<YM2413_CHANNELS)-1;
+  OPLL.PChanged   = (1<<YM2413_CHANNELS)-1;
+  OPLL.DChanged   = (1<<YM2413_CHANNELS)-1;
 
   /* Done */
   return(1);

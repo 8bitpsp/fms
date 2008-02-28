@@ -6,7 +6,7 @@
 /** and functions needed to log soundtrack into a MIDI      **/
 /** file. See Sound.h for declarations.                     **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2007                 **/
+/** Copyright (C) Marat Fayzullin 1996-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -90,8 +90,8 @@ static struct
 /** RenderAudio() Variables *******************************************/
 static int SndRate      = 0;      /* Sound rate (1=Adlib, 0=Off)      */
 static int NoiseGen     = 1;      /* Noise generator seed             */
-//int MasterSwitch = 0xFFFF;        /* Switches to turn channels on/off */
-//int MasterVolume = 192;           /* Master volume                    */
+int MasterSwitch = 0xFFFF;        /* Switches to turn channels on/off */
+int MasterVolume = 192;           /* Master volume                    */
 
 /** MIDI Logging Variables ********************************************/
 static const char *LogName = 0;   /* MIDI logging file name           */
@@ -189,8 +189,8 @@ void SetChannels(int Volume,int Switch)
   if(SndDriver.SetChannels) (*SndDriver.SetChannels)(Volume,Switch);
 
   /* Modify wave master settings */ 
-//  MasterVolume = Volume;
-//  MasterSwitch = Switch&((1<<SND_CHANNELS)-1);
+  MasterVolume = Volume;
+  MasterSwitch = Switch&((1<<SND_CHANNELS)-1);
 }
 
 /** SetWave() ************************************************/
@@ -553,4 +553,59 @@ void WriteTempo(int Freq)
   fputc((J>>16)&0xFF,MIDIOut);
   fputc((J>>8)&0xFF,MIDIOut);
   fputc(J&0xFF,MIDIOut);
+}
+
+/** InitSound() **********************************************/
+/** Initialize RenderSound() with given parameters.         **/
+/*************************************************************/
+unsigned int InitSound(unsigned int Rate,unsigned int Latency)
+{
+  int I;
+
+  /* Shut down current sound */
+  TrashSound();
+
+  /* Initialize internal variables */
+  SndRate      = 0;
+  MasterVolume = 0;
+  MasterSwitch = 0;
+  NoiseGen     = 1;
+
+  /* Reset sound parameters */
+  for(I=0;I<SND_CHANNELS;I++)
+  {
+    WaveCH[I].Type   = SND_MELODIC;
+    WaveCH[I].Count  = 0;
+    WaveCH[I].Volume = 0;
+    WaveCH[I].Freq   = 0;
+  }
+
+  /* Initialize platform-dependent audio */
+#if defined(WINDOWS)
+  Rate = WinInitSound(Rate,Latency);
+#else
+  Rate = InitAudio(Rate,Latency);
+#endif
+
+  /* Rate=0 means silence */
+  if(!Rate) { SndRate=0;return(0); }
+
+  /* Done */
+  SetChannels(192,(1<<SND_CHANNELS)-1);
+  return(SndRate=Rate);
+}
+
+/** TrashSound() *********************************************/
+/** Shut down RenderSound() driver.                         **/
+/*************************************************************/
+void TrashSound(void)
+{
+  /* Sound is now off */
+  SndRate = 0;
+  /* Shut down platform-dependent audio */
+#if defined(WINDOWS)
+  WinTrashSound();
+#else
+  TrashAudio();
+#endif
 }

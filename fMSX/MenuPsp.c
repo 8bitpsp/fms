@@ -35,7 +35,6 @@
 
 #include "LibPsp.h"
 #include "MenuPsp.h"
-#include "Psp.h"
 #include "Sound.h"
 
 #define TAB_QUICKLOAD 0

@@ -20,12 +20,8 @@
 #include "emu2413.h"
 #endif
 
+#include "audio.h"
 #include "Sound.h"
-
-int MasterVolume = 200;                  /* These are made public so  */
-int MasterSwitch = (1<<SND_CHANNELS)-1;  /* that LibWin.c can access  */
-static int SndRate      = 0;
-static int NoiseGen;
 
 static struct
 {
@@ -59,12 +55,6 @@ static struct
   { SND_MELODIC,0,0,0,0,0,0 }
 };
 
-static void PspSetSound(int Channel,int Type);
-static void PspDrum(int Type,int Force);
-static void PspSetChannels(int Volume,int Switch);
-static const signed char *PspGetWave(int Channel);
-static void PspSetWave(int Channel,const signed char *Data,int Length,int Rate);
-static void PspSound(int Channel,int Freq,int Volume);
 void AudioCallback(void* buf, unsigned int *length, void *userdata);
 
 #if defined(FMSX) && defined(ALTSOUND)
@@ -86,6 +76,8 @@ float Factor8950 = 2.25;  /* Volume percentage of MSX-AUDIO  */
 static int Wave[SND_BUFSIZE];
 #endif
 
+static int SndRate     = 0;  /* Audio sampling rate          */
+
 /** StopSound() **********************************************/
 /** Temporarily suspend sound.                              **/
 /*************************************************************/
@@ -96,22 +88,13 @@ void StopSound(void) { pspAudioSetChannelCallback(0, 0, 0); }
 /*************************************************************/
 void ResumeSound(void) { pspAudioSetChannelCallback(0, AudioCallback, 0); }
 
-/** InitSound() **********************************************/
-/** Initialize sound. Returns 0 on failure, effective rate  **/
-/** otherwise. Special cases of rate argument: 0 - return 1 **/
-/** and be silent                                           **/
+/** InitAudio() **********************************************/
+/** Initialize sound. Returns rate (Hz) on success, else 0. **/
+/** Rate=0 to skip initialization (will be silent).         **/
 /*************************************************************/
-unsigned int InitSound(unsigned int Rate,unsigned int Delay)
+unsigned int InitAudio(unsigned int Rate,unsigned int Latency)
 {
-  int J;
-
-  /* Set driver functions */
-  SndDriver.SetSound    = PspSetSound;
-  SndDriver.Drum        = PspDrum;
-  SndDriver.SetChannels = PspSetChannels;
-  SndDriver.Sound       = PspSound;
-  SndDriver.SetWave     = PspSetWave;
-  SndDriver.GetWave     = PspGetWave;
+  TrashAudio();
 
 #if defined(FMSX) && defined(ALTSOUND)
   /* MSX-MUSIC emulation */
@@ -141,27 +124,11 @@ unsigned int InitSound(unsigned int Rate,unsigned int Delay)
   SCC_reset(scc);
 #endif
 
-  /* Reset channels */
-  for(J=0;J<SND_CHANNELS;J++)
-  {
-    CH[J].Freq   = 0;
-    CH[J].Volume = 0;
-    CH[J].Count  = 0;
-  }
-
-  /* Reset variables */
-  NoiseGen = 1;
-  SndRate  = 0;
-
   /* Only 44100 supported */
-  if(Rate != 44100) return(1);
-  SndRate = Rate;
-
-  /* Set current instrments (if reopening device) */
-  for(J=0;J<SND_CHANNELS;J++) PspSetSound(J,CH[J].Type);
+  if(Rate != 44100) return(SndRate = 0);
 
   /* Done */
-  return(SndRate);
+  return(SndRate = Rate);
 }
 
 /** PspSound() ***********************************************/
@@ -190,10 +157,10 @@ void ResetSound()
 #endif
 }
 
-/** TrashSound() *********************************************/
-/** Close all devices and free all allocated resources.     **/
+/** TrashAudio() *********************************************/
+/** Free resources allocated by InitAudio().                **/
 /*************************************************************/
-void TrashSound(void)
+void TrashAudio(void)
 {
 #if defined(FMSX) && defined(ALTSOUND)
   /* clean up MSXMUSIC */
@@ -211,90 +178,17 @@ void TrashSound(void)
   SCC_delete(scc);
 #endif
 
-  if(SndRate)
-  {
-    /* Shutdown wave audio */
-    StopSound();
-
-    /* Done */
-    SndRate=0;
-  }
+  /* Shutdown wave audio */
+  StopSound();
+  SndRate = 0;
 }
 
-/** PspSetSound() ********************************************/
-/** Set sound type for a given channel.                     **/
+/** RenderAudio() ********************************************/
+/** Render given number of melodic sound samples into an    **/
+/** integer buffer for mixing.                              **/
 /*************************************************************/
-void PspSetSound(int Channel,int Type)
-{
-  if(!SndRate||(Channel<0)||(Channel>=SND_CHANNELS)) return;
-
-  CH[Channel].Type=Type;
-}
-
-/** PspDrum() ************************************************/
-/** Hit a drum of a given type with given force.            **/
-/*************************************************************/
-void PspDrum(int Type,int Force)
-{
-  if(!SndRate) return;
-  Force=Force<0? 0:Force>255? 255:Force;
-}
-
-/** PspSetChannels() *****************************************/
-/** Set overall sound volume and switch channels on/off.    **/
-/*************************************************************/
-void PspSetChannels(int Volume,int Switch)
-{
-  if(!SndRate) return;
-  Volume=Volume<0? 0:Volume>255? 255:Volume;
-  Switch&=(1<<SND_CHANNELS)-1;
-
-  MasterVolume=Volume;
-  MasterSwitch=Switch;
-}
-
-/** GetWave() ************************************************/
-/** Get current read position for the buffer set with the   **/
-/** SetWave() call. Returns 0 if no buffer has been set, or **/
-/** if there is no playrate set (i.e. wave is instrument).  **/
-/*************************************************************/
-const signed char *PspGetWave(int Channel)
-{
-  /* Channel has to be valid */
-  if((Channel<0)||(Channel>=SND_CHANNELS)) return(0);
-  /* Return current read position */
-  return(
-    CH[Channel].Rate&&(CH[Channel].Type==SND_WAVE)?
-    CH[Channel].Data+CH[Channel].Pos:0
-  );
-}
-
-
-/** SetWave() ************************************************/
-/** Set waveform for a given channel. The channel will be   **/
-/** marked with sound type SND_WAVE. Set Rate=0 if you want **/
-/** waveform to be an instrument or set it to the waveform  **/
-/** own playback rate.                                      **/
-/*************************************************************/
-void PspSetWave(int Channel,const signed char *Data,int Length,int Rate)
-{
-  /* Channel has to be valid */
-  if((Channel<0)||(Channel>=SND_CHANNELS)) return;
-
-  /* Set channel parameters */
-  CH[Channel].Type   = SND_WAVE;
-  CH[Channel].Length = Length;
-  CH[Channel].Rate   = Rate;
-  CH[Channel].Data   = Data;
-  CH[Channel].Pos    = 0;
-  CH[Channel].Count  = 0;
-}
-
-unsigned int RenderAudio(unsigned int Samples)
-{
-  /* Stub; audio is rendered via a callback */
-  return 0;
-}
+void RenderAudio(int *Wave,unsigned int Samples)
+{ /* Stub; audio is rendered via a callback */ }
 
 /** AudioCallback() ******************************************/
 /** Called by the system to render sound                    **/
