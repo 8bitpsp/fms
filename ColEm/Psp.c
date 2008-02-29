@@ -98,15 +98,13 @@ int InitMachine(void)
   ScreenH = Screen->Height;
   ScreenX = ScreenY = 0;
 
-#ifdef SOUND
   /* Initialize audio */
-  InitSound(UseSound,100);
-#endif
-
-  /* Initialize sound */
-  SndSwitch=(1<<SN76489_CHANNELS)-1;
-  SndVolume=255/SN76489_CHANNELS;
-  SetChannels(SndVolume,SndSwitch);
+  if (InitSound(UseSound,150))
+  {
+    SndSwitch=(1<<SN76489_CHANNELS)-1;
+    SndVolume=255/SN76489_CHANNELS;
+    SetChannels(SndVolume,SndSwitch);
+  }
 
   return(1);
 }
@@ -189,10 +187,7 @@ static void ResetInput()
 /*************************************************************/
 void TrashMachine(void)
 {
-#ifdef SOUND
-  StopSound();
   TrashSound();
-#endif
  
   /* Destroy keyboard */
   pspKybdDestroyLayout(KeyLayout);

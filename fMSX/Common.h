@@ -7,7 +7,7 @@
 /** implementations. It also includes dummy sound drivers   **/
 /** for fMSX.                                               **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1994-2007                 **/
+/** Copyright (C) Marat Fayzullin 1994-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -60,7 +60,7 @@ static void HiResClearLine(register pixel *P,register pixel C)
 INLINE pixel YJKColor(register int Y,register int J,register int K)
 {
   register int R,G,B;
-    
+		
   R=Y+J;
   G=Y+K;
   B=((5*Y-2*J-K)/4);

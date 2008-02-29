@@ -25,7 +25,8 @@
 #include "audio.h"
 #include "Sound.h"
 
-void AudioCallback(void* buf, unsigned int *length, void *userdata);
+static void MixAudio(PspMonoSample *buffer, unsigned int length);
+static void AudioCallback(void *buf, unsigned int *length, void *userdata);
 
 #if defined(FMSX) && defined(ALTSOUND)
 #define MSX_CLK 3579545
@@ -45,6 +46,7 @@ float Factor8950 = 2.25;  /* Volume percentage of MSX-AUDIO  */
 #else
 static sample SndData[SND_BUFSIZE];
 static int MixBuffer[SND_BUFSIZE];
+static int WPtr = 0;
 #endif
 
 static int SndRate     = 0;  /* Audio sampling rate          */
@@ -66,6 +68,9 @@ void ResumeSound(void) { pspAudioSetChannelCallback(0, AudioCallback, 0); }
 unsigned int InitAudio(unsigned int Rate,unsigned int Latency)
 {
   TrashAudio();
+
+  /* Only 44100 supported */
+  if(Rate != 44100) return(SndRate = 0);
 
 #if defined(FMSX) && defined(ALTSOUND)
   /* MSX-MUSIC emulation */
@@ -94,13 +99,10 @@ unsigned int InitAudio(unsigned int Rate,unsigned int Latency)
   scc=SCC_new();
   SCC_reset(scc);
 #else
-  register int J;
-  /* Clear audio buffers */
-  for(J=0;J<SND_BUFSIZE;J++) { SndData[J]=0; MixBuffer[J]=0; }
+  WPtr=0;
+  memset(SndData,0,sizeof(SndData));
+  memset(MixBuffer,0,sizeof(MixBuffer));
 #endif
-
-  /* Only 44100 supported */
-  if(Rate != 44100) return(SndRate = 0);
 
   /* Done */
   return(SndRate = Rate);
@@ -150,15 +152,25 @@ void TrashAudio(void)
 /** AudioCallback() ******************************************/
 /** Called by the system to render sound                    **/
 /*************************************************************/
-void AudioCallback(void* buf, unsigned int *length, void *userdata)
+static void AudioCallback(void* buf, unsigned int *length, void *userdata)
 {
-  PspMonoSample *OutBuf = (PspMonoSample*)buf;
+  MixAudio((PspMonoSample*)buf, *length);
+}
+
+/** AudioCallback() ******************************************/
+/** Writes sound to the output buffer,                      **/
+/** mixing as necessary                                     **/
+/*************************************************************/
+static void MixAudio(PspMonoSample *buffer, unsigned int length)
+{
+  register int J;
 
 #if defined(FMSX) && defined(ALTSOUND)
-  register int   J,R;
+  register int R;
   register INT16 P,O,A,S;
 
-  for(J=0;J<*length;J++)
+  /* Mix sound */
+  for(J=0;J<length;J++)
   {
     P=PSG_calc(psg);
     S=SCC_calc(scc);
@@ -166,15 +178,17 @@ void AudioCallback(void* buf, unsigned int *length, void *userdata)
     A=Use8950? Y8950UpdateOne(fm_opl): 0;
     R=P*FactorPSG+O*Factor2413+A*Factor8950+S*FactorSCC;
 
-    (OutBuf++)->Channel = (R>32767)?32767:(R<-32768)?-32768:R;
+    /* Write to output buffer */
+    (buffer++)->Channel = (R>32767)?32767:(R<-32768)?-32768:R;
   }
 #else
-  RenderAudio(MixBuffer,*length);
-  PlayAudio(MixBuffer,*length);
-  
-  register int J;
-  for(J=0;J<*length;J++)
-    (OutBuf++)->Channel = SndData[J];
+  /* Mix sound */
+  RenderAudio(MixBuffer,length);
+  PlayAudio(MixBuffer,length);
+
+  /* Write to output buffer */
+  for(J=0;J<length;J++)
+    (buffer++)->Channel = SndData[J];
 #endif
 }
 
@@ -184,9 +198,9 @@ void AudioCallback(void* buf, unsigned int *length, void *userdata)
 unsigned int GetFreeAudio(void)
 {
 #if defined(FMSX) && defined(ALTSOUND)
-  return(0);
+  return(0); /* Not used; should not be called */
 #else
-  return(!SndRate? 0:SND_BUFSIZE);
+  return(!SndRate?0:SND_BUFSIZE-WPtr);
 #endif
 }
 
@@ -197,11 +211,15 @@ unsigned int GetFreeAudio(void)
 unsigned int WriteAudio(sample *Data,unsigned int Length)
 {
 #if defined(FMSX) && defined(ALTSOUND)
-  return(0);
+  return(0); /* Not used; should not be called */
 #else
-  /* Require audio to be initialized */
-  if(!SndRate) return(0);
-  memcpy(SndData,Data,Length*sizeof(sample));
+  /* Require audio to be initialized      */
+  /* and buffer to have enough free space */
+  if(!SndRate||WPtr+Length>SND_BUFSIZE) return(0);
+
+  /* Copy sample data and increment buffer position */
+  memcpy(SndData+WPtr*sizeof(sample),Data,Length*sizeof(sample));
+  if ((WPtr+=Length)>=SND_BUFSIZE) WPtr=0;
   
   /* Return number of samples copied */
   return(Length);
