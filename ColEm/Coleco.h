@@ -18,6 +18,10 @@
 #include "SN76489.h"          /* SN76489 PSG emulation       */
 #include "TMS9918.h"          /* TMS9918 VDP emulation       */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NORAM         0xFF    /* Byte to be returned from    */
                               /* nonexisting pages and ports */
 
@@ -186,4 +190,7 @@ unsigned int Joystick(void);
 /************************************ TO BE WRITTEN BY USER **/
 unsigned int Mouse(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* COLECO_H */

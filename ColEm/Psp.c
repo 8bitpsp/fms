@@ -286,6 +286,9 @@ unsigned int Mouse(void)
 /*************************************************************/
 unsigned int Joystick(void)
 {
+  unsigned int Joy=0;
+  SceCtrlData pad;
+
   /* If starting up, flash the menu */
   if (FlashMenu)
   {
@@ -298,8 +301,8 @@ unsigned int Joystick(void)
     ResetColeco(Mode);
   }
 
-  unsigned int Joy=0;
-  SceCtrlData pad;
+  /* Rendering audio here */
+  RenderAndPlayAudio(GetFreeAudio());
 
   if (pspCtrlPollControls(&pad))
   {

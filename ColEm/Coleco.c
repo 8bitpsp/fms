@@ -222,7 +222,6 @@ int StartColeco(const char *Cartridge)
   /* Done loading ROMs */
   if(CurDir[0]) chdir(CurDir);
   if(P) { if(Verbose) printf("%s\n",P);return(0); }
-  if(Verbose) printf("OK\n");
 
   /* Open stream for a printer */
   if(!PrnName) PrnStream=stdout;
@@ -230,7 +229,7 @@ int StartColeco(const char *Cartridge)
   {
     if(Verbose) printf("Redirecting printer output to %s...",PrnName);
     if(!(PrnStream=fopen(PrnName,"wb"))) PrnStream=stdout;
-    if(Verbose) puts(PrnStream==stdout? "FAILED":"OK");
+    if(Verbose) printf(PrnStream==stdout? "FAILED\n":"OK\n");
   }
 
   /* Initialize MIDI sound logging */
@@ -641,6 +640,14 @@ int ResetColeco(int NewMode)
   SpinState = 0;
   SpinCount = 0;
   SpinStep  = 0;
+
+  /* Clear memory (important for NetPlay, to  */
+  /* keep states at both sides consistent)    */
+  memset(RAM_MAIN_LO,NORAM,0x8000);
+  memset(RAM_MAIN_HI,NORAM,0x8000);
+  memset(RAM_EXP_LO,NORAM,0x8000);
+  memset(RAM_EXP_HI,NORAM,0x8000);
+  memset(RAM_OS7,NORAM,0x2000);
 
   /* Set up memory pages */
   SetMemory(Mode&CV_ADAM? 0x00:0x0F,0x00);

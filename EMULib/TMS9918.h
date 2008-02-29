@@ -76,16 +76,12 @@ typedef struct { unsigned char R,G,B; } RGB;
 
 #ifndef PIXEL_TYPE_DEFINED
 #define PIXEL_TYPE_DEFINED
-#ifdef BPP32
+#if defined(BPP32) | defined(BPP24)
 typedef unsigned int pixel;
-#else
-#ifdef BPP16
+#elif defined(BPP16)
 typedef unsigned short pixel;
 #else
-#ifdef BPP8
 typedef unsigned char pixel;
-#endif
-#endif
 #endif
 #endif
 

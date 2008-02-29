@@ -295,6 +295,7 @@ static inline void HandleKeyboardInput(unsigned int code, int on)
 void Keyboard(void)
 {
   int i;
+  SceCtrlData pad;
 
   /* If starting up, flash the menu */
   if (FlashMenu)
@@ -310,8 +311,6 @@ void Keyboard(void)
     /* Reset the system */
     ResetMSX(Mode,RAMPages,VRAMPages);
   }
-
-  SceCtrlData pad;
 
 #ifndef ALTSOUND
   /* Rendering audio here */

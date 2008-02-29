@@ -50,7 +50,7 @@ int main(int argc,char *argv[])
 
   /* Initialize PSP */
   pspInit(argv[0]);
-  pspAudioInit(SND_BUFSIZE);
+  pspAudioInit(SND_BUFSIZE, 0);
   pspCtrlInit();
   pspVideoInit();
 

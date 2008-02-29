@@ -458,8 +458,6 @@ int StartMSX(int NewMode,int NewRAMPages,int NewVRAMPages)
   if((ResetMSX(NewMode,NewRAMPages,NewVRAMPages)^NewMode)&MSX_MODEL) return(0);
   if(!RAMPages||!VRAMPages) return(0);
 
-  if(Verbose) printf("Loading optional ROMs: ");
-
   /* Change to the program directory */
   if(ProgDir) chdir(ProgDir);
 
@@ -470,6 +468,8 @@ int StartMSX(int NewMode,int NewRAMPages,int NewVRAMPages)
     J=LoadFNT(FNTName);
     PRINTRESULT(J);
   }
+
+  if(Verbose) printf("Loading optional ROMs: ");
 
   /* Try loading CMOS memory contents */
   if(LoadROM("CMOS.ROM",sizeof(RTC),(byte *)RTC))
@@ -1836,6 +1836,8 @@ void SSlot(register byte V)
 
   /* Cartridge slots do not have subslots, fix them at 0:0:0:0 */
   if((PSL[3]==1)||(PSL[3]==2)) V=0x00;
+  /* In MSX1, slot 0 does not have subslots either */
+  if(!PSL[3]&&((Mode&MSX_MODEL)==MSX_MSX1)) V=0x00;
 
   if(SSLReg[PSL[3]]!=V)
     for(SSLReg[PSL[3]]=V,J=0;J<4;++J,V>>=2)
