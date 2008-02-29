@@ -54,10 +54,8 @@ static byte JoyState;
 static int MouseState;
 
 /** Sound-related definitions ********************************/
-#ifdef SOUND
 static int SndSwitch = (1<<MAXCHANNELS)-1;
 static int SndVolume = 255/MAXCHANNELS;
-#endif
 
 extern WD1793 FDC;
 extern char *ROM[MAXCARTS];
@@ -152,11 +150,13 @@ int InitMachine(void)
     BPal[I]=BPal[I|0x04]=BPal[I|0x20]=BPal[I|0x24]=XPal[J+16];
   }
 
-#ifdef SOUND
   /* Initialize sound */
-  if(InitSound(UseSound, 150))
+  if(InitSound(UseSound,150))
+  {
+    SndSwitch=(1<<MAXCHANNELS)-1;
+    SndVolume=255/MAXCHANNELS;
     SetChannels(SndVolume,SndSwitch);
-#endif
+  }
 
   /* Init screen position */
   ScreenW = Screen->Viewport.Width;
@@ -171,9 +171,7 @@ int InitMachine(void)
 /*************************************************************/
 void TrashMachine(void)
 {
-#ifdef SOUND
   TrashSound();
-#endif
 
   /* Destroy screen buffer */
   if (Screen) pspImageDestroy(Screen);
@@ -297,6 +295,11 @@ void Keyboard(void)
   int i;
   SceCtrlData pad;
 
+#ifndef ALTSOUND
+  /* Rendering audio here */
+//  RenderAndPlayAudio(GetFreeAudio());
+#endif
+
   /* If starting up, flash the menu */
   if (FlashMenu)
   {
@@ -311,11 +314,6 @@ void Keyboard(void)
     /* Reset the system */
     ResetMSX(Mode,RAMPages,VRAMPages);
   }
-
-#ifndef ALTSOUND
-  /* Rendering audio here */
-  RenderAndPlayAudio(GetFreeAudio());
-#endif
 
   /* Check the input */
   if (pspCtrlPollControls(&pad))

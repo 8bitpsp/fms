@@ -5,15 +5,15 @@
 /** This file contains standard sound generation routines   **/
 /** for Playstation Portable console                        **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2007                 **/
-/**               Akop Karapetyan 2007                      **/
+/** Copyright (C) Marat Fayzullin 1996-2008                 **/
+/**               Akop Karapetyan 2008                      **/
 /**               Vincent van Dam 2002                      **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
 /*************************************************************/
 
-#include <malloc.h>
+#include <string.h>
 
 #if defined(FMSX) && defined(ALTSOUND)
 #include "fmopl.h"
@@ -43,10 +43,8 @@ float FactorSCC  = 3.00;  /* Volume percentage of SCC        */
 float Factor2413 = 3.00;  /* Volume percentage of MSX-MUSIC  */
 float Factor8950 = 2.25;  /* Volume percentage of MSX-AUDIO  */
 #else
-static int SndSize     = 0;  /* SndData[] size               */
-static sample *SndData = 0;  /* Audio buffers                */
-static int RPtr        = 0;  /* Read pointer into Bufs       */
-static int WPtr        = 0;  /* Write pointer into Bufs      */
+static sample SndData[SND_BUFSIZE];
+static int MixBuffer[SND_BUFSIZE];
 #endif
 
 static int SndRate     = 0;  /* Audio sampling rate          */
@@ -97,21 +95,8 @@ unsigned int InitAudio(unsigned int Rate,unsigned int Latency)
   SCC_reset(scc);
 #else
   register int J;
-
-  SndSize = 0;
-  SndData = 0;
-  RPtr    = 0;
-  WPtr    = 0;
-
-  /* Compute sound buffer size */
-  SndSize=(Rate*Latency/1000+SND_BUFSIZE-1);
-
-  /* Allocate audio buffers */
-  SndData=(sample *)malloc(SndSize*sizeof(sample));
-  if(!SndData) { TrashSound();return(0); }
-
   /* Clear audio buffers */
-  for(J=0;J<SndSize;++J) SndData[J]=0;
+  for(J=0;J<SND_BUFSIZE;J++) { SndData[J]=0; MixBuffer[J]=0; }
 #endif
 
   /* Only 44100 supported */
@@ -142,6 +127,9 @@ void TrashAudio(void)
   if (!SndRate) return;
   SndRate = 0;
 
+  /* Shutdown wave audio */
+  StopSound();
+
 #if defined(FMSX) && defined(ALTSOUND)
   /* clean up MSXMUSIC */
   if (Use2413)
@@ -156,19 +144,7 @@ void TrashAudio(void)
   /* clean up PSG/SCC */
   PSG_delete(psg);
   SCC_delete(scc);
-#else
-  /* If buffers were allocated... */
-  if(SndData) free(SndData);
-
-  /* Sound trashed */
-  SndData = 0;
-  SndSize = 0;
-  RPtr    = 0;
-  WPtr    = 0;
 #endif
-
-  /* Shutdown wave audio */
-  StopSound();
 }
 
 /** AudioCallback() ******************************************/
@@ -193,15 +169,12 @@ void AudioCallback(void* buf, unsigned int *length, void *userdata)
     (OutBuf++)->Channel = (R>32767)?32767:(R<-32768)?-32768:R;
   }
 #else
+  RenderAudio(MixBuffer,*length);
+  PlayAudio(MixBuffer,*length);
+  
   register int J;
-
-  /* Mix and convert waveforms */
   for(J=0;J<*length;J++)
     (OutBuf++)->Channel = SndData[J];
-
-  /* Advance buffer pointer, clearing the buffer */
-  for(J=0;J<SND_BUFSIZE;++J) SndData[RPtr++]=0;
-  if(RPtr>=SndSize) RPtr=0;
 #endif
 }
 
@@ -213,7 +186,7 @@ unsigned int GetFreeAudio(void)
 #if defined(FMSX) && defined(ALTSOUND)
   return(0);
 #else
-  return(!SndRate? 0:RPtr>=WPtr? RPtr-WPtr:RPtr-WPtr+SndSize);
+  return(!SndRate? 0:SND_BUFSIZE);
 #endif
 }
 
@@ -226,20 +199,12 @@ unsigned int WriteAudio(sample *Data,unsigned int Length)
 #if defined(FMSX) && defined(ALTSOUND)
   return(0);
 #else
-  unsigned int J;
-
   /* Require audio to be initialized */
   if(!SndRate) return(0);
-
-  /* Copy audio samples */
-  for(J=0;(J<Length)&&(RPtr!=WPtr);++J)
-  {
-    SndData[WPtr++]=Data[J];
-    if(WPtr>=SndSize) WPtr=0;
-  }
-
+  memcpy(SndData,Data,Length*sizeof(sample));
+  
   /* Return number of samples copied */
-  return(J);
+  return(Length);
 #endif
 }
 

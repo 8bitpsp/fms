@@ -19,7 +19,7 @@ BUILD_EMULIB=$(EMULIB)/Sound.o $(EMULIB)/SndPsp.o $(EMULIB)/LibPsp.o
 
 ifdef MINIZIP
 BUILD_MINIZIP=$(MINIZIP)/ioapi.o $(MINIZIP)/unzip.o $(MINIZIP)/zip.o
-DEFINES += -DMINIZIP
+DEFINES += -DMINIZIP -DBPS16
 endif
 
 INCDIR +=./EMULib ./Z80 ./psplib ./minizip
