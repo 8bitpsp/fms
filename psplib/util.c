@@ -48,3 +48,20 @@ int pspUtilSaveVramSeq(const char *path, const char *filename)
   return exit_code;
 }
 
+int pspUtilCompareDates(const ScePspDateTime *date1,
+                        const ScePspDateTime *date2)
+{
+  if (date1->year != date2->year) 
+    return date1->year - date2->year;
+  if (date1->month != date2->month) 
+    return date1->month - date2->month;
+  if (date1->day != date2->day) 
+    return date1->day - date2->day;
+  if (date1->hour != date2->hour) 
+    return date1->hour - date2->hour;
+  if (date1->minute != date2->minute) 
+    return date1->minute - date2->minute;
+  if (date1->second != date2->second) 
+    return date1->second - date2->second;
+  return 0;
+}

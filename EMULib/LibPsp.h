@@ -19,7 +19,7 @@
 #define FILE_PLAIN     1
 #define FILE_ZIP       2
 
-#define SND_BUFSIZE     512    /* Size of a wave buffer      */
+#define SND_BUFSIZE     256    /* Size of a wave buffer      */
 
 /** InitAudio() **********************************************/
 /** Initialize sound. Returns rate (Hz) on success, else 0. **/

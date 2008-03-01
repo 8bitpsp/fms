@@ -295,11 +295,6 @@ void Keyboard(void)
   int i;
   SceCtrlData pad;
 
-#ifndef ALTSOUND
-  /* Rendering audio here */
-//  RenderAndPlayAudio(GetFreeAudio());
-#endif
-
   /* If starting up, flash the menu */
   if (FlashMenu)
   {

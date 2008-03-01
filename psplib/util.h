@@ -13,6 +13,7 @@
 #ifndef _PSP_UTIL_H
 #define _PSP_UTIL_H
 
+#include <psptypes.h>
 #include "image.h"
 
 #ifdef __cplusplus
@@ -21,6 +22,9 @@ extern "C" {
 
 int pspUtilSavePngSeq(const char *path, const char *filename, const PspImage *image);
 int pspUtilSaveVramSeq(const char *path, const char *filename);
+
+int pspUtilCompareDates(const ScePspDateTime *date1, 
+                 const ScePspDateTime *date2);
 
 #ifdef __cplusplus
 }

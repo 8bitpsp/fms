@@ -183,6 +183,7 @@ static void MixAudio(PspMonoSample *buffer, unsigned int length)
   }
 #else
   /* Mix sound */
+  memset(MixBuffer,0,sizeof(MixBuffer));
   RenderAudio(MixBuffer,length);
   PlayAudio(MixBuffer,length);
 
