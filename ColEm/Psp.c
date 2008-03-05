@@ -33,7 +33,9 @@ int UseSound    = 44100;   /* Audio sampling frequency (Hz)  */
 int SndSwitch;             /* Mask of enabled sound channels */
 int SndVolume;             /* Master volume for audio        */
 
-extern PspImage *Screen;   /* Display buffer  */
+PspImage *Screen;                        /* Screen canvas */
+static pixel ColecoScreen[WIDTH*HEIGHT]; /* Actual display buffer  */
+
 extern int FrameLimiter;
 extern int DisplayMode;
 extern int Frameskip;
@@ -67,12 +69,19 @@ static void OpenMenu();
 static void ResetInput();
 static void HandleSpecialInput(int code, int on);
 static inline void HandlePadInput(unsigned int code, int on);
+static inline void CopyScreen();
 
 /** InitMachine() ********************************************/
 /** Allocate resources needed by machine-dependent code.    **/
 /*************************************************************/
 int InitMachine(void)
 {
+  /* Initialize screen buffer */
+  if (!(Screen = pspImageCreateVram(512, HEIGHT, PSP_IMAGE_16BPP)))
+    return(0);
+  Screen->Viewport.Width = WIDTH;
+  pspImageClear(Screen, 0x8000);
+
   /* Init local vars */
   Frame=0;
   ClearBufferCount=0;
@@ -93,7 +102,7 @@ int InitMachine(void)
   /* Initialize video */
   ScrWidth  = WIDTH;
   ScrHeight = HEIGHT;
-  ScrBuffer = Screen->Pixels;
+  ScrBuffer = ColecoScreen;
   ScreenW = Screen->Width;
   ScreenH = Screen->Height;
   ScreenX = ScreenY = 0;
@@ -187,6 +196,9 @@ static void ResetInput()
 /*************************************************************/
 void TrashMachine(void)
 {
+  /* Trash images */
+  if (Screen) pspImageDestroy(Screen);
+
   TrashSound();
  
   /* Destroy keyboard */
@@ -194,6 +206,20 @@ void TrashMachine(void)
 
   /* Destroy menu */
   TrashMenu();
+}
+
+/** CopyScreen() *********************************************/
+/** Copy contents of VDP to the Screen bitmap               **/
+/*************************************************************/
+static inline void CopyScreen()
+{
+  int i,
+    canvasPitch = Screen->Width * Screen->BytesPerPixel,
+    vdpPitch = WIDTH * sizeof(pixel);
+
+  for (i = 0; i < HEIGHT; i++)
+    memcpy(Screen->Pixels + canvasPitch * i,
+      ColecoScreen + vdpPitch * i, WIDTH);
 }
 
 /** RefreshScreen() ******************************************/
@@ -216,6 +242,7 @@ void RefreshScreen(void *Buffer,int Width,int Height)
   }
 
   /* Draw the screen */
+  CopyScreen();
   pspVideoPutImage(Screen, ScreenX, ScreenY, ScreenW, ScreenH);
 
   /* Draw keyboard */

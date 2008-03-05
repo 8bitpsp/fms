@@ -56,7 +56,7 @@
 #define TAB_ABOUT     5
 #define TAB_MAX       TAB_SYSTEM
 
-PspImage *Screen;
+extern PspImage *Screen;
 int DisplayMode;
 int FrameLimiter;
 int VSync;
@@ -453,10 +453,6 @@ void InitMenu()
   /* Initialize control menu */
   ControlUiMenu.Menu = pspMenuCreate();
   pspMenuLoad(ControlUiMenu.Menu, ControlMenuDef);
-
-  /* Initialize screen buffer */
-  Screen = pspImageCreate(WIDTH, HEIGHT, PSP_IMAGE_16BPP);
-  pspImageClear(Screen, 0x8000);
 
   /* Initialize options */
   LoadOptions();
@@ -1357,7 +1353,6 @@ void TrashMenu()
   /* Trash images */
   if (Background) pspImageDestroy(Background);
   if (NoSaveIcon) pspImageDestroy(NoSaveIcon);
-  if (Screen) pspImageDestroy(Screen);
 
   if (RomPath) free(RomPath);
   if (GameName) free(GameName);
