@@ -103,8 +103,8 @@ int InitMachine(void)
   ScrWidth  = WIDTH;
   ScrHeight = HEIGHT;
   ScrBuffer = ColecoScreen;
-  ScreenW = Screen->Width;
-  ScreenH = Screen->Height;
+  ScreenW = Screen->Viewport.Width;
+  ScreenH = Screen->Viewport.Height;
   ScreenX = ScreenY = 0;
 
   /* Initialize audio */
@@ -143,12 +143,12 @@ static void OpenMenu()
   {
   default:
   case DISPLAY_MODE_UNSCALED:
-    ScreenW = Screen->Width;
-    ScreenH = Screen->Height;
+    ScreenW = Screen->Viewport.Width;
+    ScreenH = Screen->Viewport.Height;
     break;
   case DISPLAY_MODE_FIT_HEIGHT:
-    ratio = (float)SCR_HEIGHT / (float)Screen->Height;
-    ScreenW = (float)Screen->Width * ratio;
+    ratio = (float)SCR_HEIGHT / (float)Screen->Viewport.Height;
+    ScreenW = (float)Screen->Viewport.Width * ratio;
     ScreenH = SCR_HEIGHT;
     break;
   case DISPLAY_MODE_FILL_SCREEN:

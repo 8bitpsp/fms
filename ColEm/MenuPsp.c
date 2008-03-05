@@ -1043,8 +1043,8 @@ int OnSaveStateButtonPress(const PspUiGallery *gallery,
 void OnSystemRender(const void *uiobject, const void *item_obj)
 {
   int w, h, x, y;
-  w = WIDTH / 2;
-  h = HEIGHT / 2;
+  w = Screen->Viewport.Width / 2;
+  h = Screen->Viewport.Height / 2;
   x = SCR_WIDTH - w - 8;
   y = SCR_HEIGHT - h - 80;
 
