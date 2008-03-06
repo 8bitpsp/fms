@@ -76,7 +76,7 @@ static inline void CopyScreen();
 /*************************************************************/
 int InitMachine(void)
 {
-  /* Initialize screen buffer */
+  /* Initialize screen canvas */
   if (!(Screen = pspImageCreateVram(512, HEIGHT, PSP_IMAGE_16BPP)))
     return(0);
   Screen->Viewport.Width = WIDTH;
@@ -214,12 +214,12 @@ void TrashMachine(void)
 static inline void CopyScreen()
 {
   int i,
-    canvasPitch = Screen->Width * Screen->BytesPerPixel,
+    canvasPitch = Screen->Width * sizeof(pixel),
     vdpPitch = WIDTH * sizeof(pixel);
 
   for (i = 0; i < HEIGHT; i++)
     memcpy(Screen->Pixels + canvasPitch * i,
-      ColecoScreen + vdpPitch * i, WIDTH);
+      ColecoScreen + WIDTH * i, vdpPitch);
 }
 
 /** RefreshScreen() ******************************************/
@@ -322,9 +322,6 @@ unsigned int Joystick(void)
     /* Reset the system */
     ResetColeco(Mode);
   }
-
-  /* Rendering audio here */
-  RenderAndPlayAudio(GetFreeAudio());
 
   if (pspCtrlPollControls(&pad))
   {
