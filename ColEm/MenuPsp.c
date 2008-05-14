@@ -611,10 +611,13 @@ static int LoadResource(const char *filename)
     Quickload = strdup(filename);
   }
 
-  free(file_to_load);
-
   /* Clear the screen */
   pspImageClear(Screen, 0x8000);
+
+  /* Reset selected state */
+  SaveStateGallery.Menu->Selected = NULL;
+
+  free(file_to_load);
 
   return 1;
 }
@@ -1074,10 +1077,13 @@ static void DisplayControlTab()
 
 static void DisplayStateTab()
 {
-  PspMenuItem *item;
+  PspMenuItem *item, *sel = NULL;
   SceIoStat stat;
   char caption[32];
   const char *config_name = GetConfigName();
+  ScePspDateTime latest;
+
+  memset(&latest,0,sizeof(latest));
 
   if (config_name)
   {
@@ -1096,12 +1102,21 @@ static void DisplayStateTab()
         if (sceIoGetstat(path, &stat) < 0)
           sprintf(caption, "ERROR");
         else
+				{
+		      /* Determine the latest save state */
+		      if (pspUtilCompareDates(&latest, &stat.st_mtime) < 0)
+		      {
+		        sel = item;
+		        latest = stat.st_mtime;
+		      }
+
           sprintf(caption, "%02i/%02i/%02i %02i:%02i", 
             stat.st_mtime.month,
             stat.st_mtime.day,
             stat.st_mtime.year - (stat.st_mtime.year / 100) * 100,
             stat.st_mtime.hour,
             stat.st_mtime.minute);
+				}
   
         pspMenuSetCaption(item, caption);
         item->Icon = LoadStateIcon(path);
@@ -1114,6 +1129,10 @@ static void DisplayStateTab()
         pspMenuSetHelpText(item, EmptySlotText);
       }
     }
+
+		/* Highlight the latest save state if none are selected */
+		if (SaveStateGallery.Menu->Selected == NULL)
+		  SaveStateGallery.Menu->Selected = sel;
   
     free(path);
     pspUiOpenGallery(&SaveStateGallery, game_name);
