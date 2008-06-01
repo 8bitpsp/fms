@@ -393,9 +393,9 @@ static const PspMenuItemDef
   SystemMenuDef[] = {
 #ifdef ALTSOUND
     MENU_HEADER("Audio"),
-    MENU_ITEM("MSX Music emulation", SYSTEM_MSXAUDIO, ToggleOptions, -1, 
+    MENU_ITEM("MSX Audio emulation", SYSTEM_MSXAUDIO, ToggleOptions, -1, 
       "\026\250\020 Toggle MSX Music emulation"),
-    MENU_ITEM("MSX Audio emulation", SYSTEM_MSXMUSIC, ToggleOptions, -1, 
+    MENU_ITEM("MSX Music emulation", SYSTEM_MSXMUSIC, ToggleOptions, -1, 
       "\026\250\020 Toggle MSX Audio emulation"),
 #endif
     MENU_HEADER("Video"),
@@ -1294,10 +1294,12 @@ void DisplayMenu()
       pspMenuSelectOptionByValue(item, (void*)RAMPages);
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_VRAMPAGES);
       pspMenuSelectOptionByValue(item, (void*)VRAMPages);
+#ifdef ALTSOUND
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_MSXAUDIO);
       pspMenuSelectOptionByValue(item, (void*)Use8950);
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_MSXMUSIC);
       pspMenuSelectOptionByValue(item, (void*)Use2413);
+#endif
       item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_OSI);
       pspMenuSelectOptionByValue(item, (void*)ShowStatus);
 

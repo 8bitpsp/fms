@@ -1,9 +1,12 @@
+# Comment out to completely disable MSX Audio
 MSXAUDIO=fMSX/msxaudio
+# Comment out to use Marat's faster, less accurate engine
 MSXMUSIC=fMSX/msxmusic
+
 FMSX=fMSX
 
 PSP_APP_NAME=fMSX PSP
-PSP_APP_VER=3.5.1
+PSP_APP_VER=3.5.2
 
 DEFINES=-DFMSX -DDISK
 
