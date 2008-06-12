@@ -1270,11 +1270,11 @@ void OutZ80(word Port,byte Value)
   {
 
 #ifdef ALTSOUND
-case 0x7C: OPLL.Latch=Value;return;               /* OPLL Register# */
-case 0x7D: WriteOPLL(OPLL.Latch,Value);return;    /* OPLL Data      */
-case 0xA0: PSG.Latch=Value;return;                /* PSG Register#  */
-case 0xC0: WriteAUDIO(0,Value);return;            /* AUDIO Register#*/
-case 0xC1: WriteAUDIO(1,Value);return;            /* AUDIO Data     */
+case 0x7C: if (Use2413) OPLL.Latch=Value; return;              /* OPLL Register# */
+case 0x7D: if (Use2413) WriteOPLL(OPLL.Latch,Value);return;    /* OPLL Data      */
+case 0xA0: PSG.Latch=Value;return;                             /* PSG Register#  */
+case 0xC0: if (Use8950) WriteAUDIO(0,Value);return;            /* AUDIO Register#*/
+case 0xC1: if (Use8950) WriteAUDIO(1,Value);return;            /* AUDIO Data     */
 #else
 case 0x7C: WrCtrl2413(&OPLL,Value);return;        /* OPLL Register# */
 case 0x7D: WrData2413(&OPLL,Value);return;        /* OPLL Data      */
