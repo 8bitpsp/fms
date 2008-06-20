@@ -22,7 +22,7 @@
 
 #include "psp.h"
 #include "ui.h"
-#include "fileio.h"
+#include "file.h"
 #include "video.h"
 #include "ctrl.h"
 #include "image.h"
@@ -502,7 +502,7 @@ int OnQuickloadOk(const void *browser, const void *path)
     return 0;
 
   if (GameName) free(GameName);
-  GameName = strdup(pspFileIoGetFilename(path));
+  GameName = strdup(pspFileGetFilename(path));
 
   /* Load game configuration */
   if (!LoadGameConfig(GetConfigName(), &GameConfig))
@@ -520,7 +520,7 @@ static int LoadResource(const char *filename)
 
 #ifdef MINIZIP
   /* Check if it's a zip file */
-  if (pspFileIoEndsWith(filename, "ZIP"))
+  if (pspFileEndsWith(filename, "ZIP"))
   {
     unzFile zip;
     unz_file_info fi;
@@ -556,7 +556,7 @@ static int LoadResource(const char *filename)
       }
 
       /* For ROM's, just load the first available one */
-      if (pspFileIoEndsWith(arch_file, "ROM"))
+      if (pspFileEndsWith(arch_file, "ROM"))
       {
         strcpy(loadable_file, arch_file);
         break;
@@ -594,7 +594,7 @@ static int LoadResource(const char *filename)
   file_to_load = strdup(filename);
 
   /* Load cartridge */
-  if (pspFileIoEndsWith(file_to_load, "ROM") || pspFileIoEndsWith(file_to_load, "ROM.GZ"))
+  if (pspFileEndsWith(file_to_load, "ROM") || pspFileEndsWith(file_to_load, "ROM.GZ"))
   {
     if (!LoadROM(file_to_load))
     {
@@ -605,7 +605,7 @@ static int LoadResource(const char *filename)
 
     /* Set path as new cart path */
     free(RomPath);
-    RomPath = pspFileIoGetParentDirectory(filename);
+    RomPath = pspFileGetParentDirectory(filename);
 
     if (Quickload) free(Quickload);
     Quickload = strdup(filename);
@@ -941,7 +941,7 @@ int OnSaveStateOk(const void *gallery, const void *item)
   sprintf(path, "%s%s_%02i.sta", SaveStatePath, config_name, 
     ((const PspMenuItem*)item)->ID);
 
-  if (pspFileIoCheckIfExists(path) && pspUiConfirm("Load state?"))
+  if (pspFileCheckIfExists(path) && pspUiConfirm("Load state?"))
   {
     if (LoadState(path))
     {
@@ -978,7 +978,7 @@ int OnSaveStateButtonPress(const PspUiGallery *gallery,
     {
       if (button_mask & PSP_CTRL_SQUARE)
       {
-        if (pspFileIoCheckIfExists(path) && !pspUiConfirm("Overwrite existing state?"))
+        if (pspFileCheckIfExists(path) && !pspUiConfirm("Overwrite existing state?"))
           break;
 
         pspUiFlashMessage("Saving, please wait ...");
@@ -1015,10 +1015,10 @@ int OnSaveStateButtonPress(const PspUiGallery *gallery,
       }
       else if (button_mask & PSP_CTRL_TRIANGLE)
       {
-        if (!pspFileIoCheckIfExists(path) || !pspUiConfirm("Delete state?"))
+        if (!pspFileCheckIfExists(path) || !pspUiConfirm("Delete state?"))
           break;
 
-        if (!pspFileIoDelete(path))
+        if (!pspFileDelete(path))
         {
           pspUiAlert("ERROR: State not deleted");
           break;
@@ -1097,7 +1097,7 @@ static void DisplayStateTab()
     {
       sprintf(path, "%s%s_%02i.sta", SaveStatePath, config_name, item->ID);
   
-      if (pspFileIoCheckIfExists(path))
+      if (pspFileCheckIfExists(path))
       {
         if (sceIoGetstat(path, &stat) < 0)
           sprintf(caption, "ERROR");
@@ -1288,7 +1288,7 @@ PspImage* SaveState(const char *path, PspImage *icon)
 /* Gets configuration name */
 static const char* GetConfigName()
 {
-  if (Quickload) return pspFileIoGetFilename(Quickload);
+  if (Quickload) return pspFileGetFilename(Quickload);
   return NullConfigFile;
 }
 
@@ -1309,7 +1309,7 @@ static int LoadGameConfig(const char *filename, struct GameConfig *config)
   sprintf(path, "%s%s/%s.cnf", pspGetAppDirectory(), ConfigDir, filename);
 
   /* If no configuration, load defaults */
-  if (!pspFileIoCheckIfExists(path))
+  if (!pspFileCheckIfExists(path))
   {
     free(path);
     InitGameConfig(config);

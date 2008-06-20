@@ -15,7 +15,7 @@
 #include <malloc.h>
 #include <stdio.h>
 
-#include "fileio.h"
+#include "file.h"
 #include "image.h"
 
 #include "LibPsp.h"

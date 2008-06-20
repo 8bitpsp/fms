@@ -22,7 +22,7 @@
 
 #include "psp.h"
 #include "ui.h"
-#include "fileio.h"
+#include "file.h"
 #include "video.h"
 #include "ctrl.h"
 #include "image.h"
@@ -1242,7 +1242,7 @@ static int SaveOptions()
 
   if (Quickload)
   {
-    char *qlpath = pspFileIoGetParentDirectory(Quickload);
+    char *qlpath = pspFileGetParentDirectory(Quickload);
     pspInitSetString(init, "File", "Game Path", qlpath);
     free(qlpath);
   }
@@ -1347,8 +1347,8 @@ void DisplayMenu()
 /* Gets configuration name */
 static const char* GetConfigName()
 {
-  if (ROM[0]) return pspFileIoGetFilename(ROM[0]);
-  if (Drive[0]) return pspFileIoGetFilename(Drive[0]);
+  if (ROM[0]) return pspFileGetFilename(ROM[0]);
+  if (Drive[0]) return pspFileGetFilename(Drive[0]);
 
   return BasicConfigFile;
 }
@@ -1370,7 +1370,7 @@ static int LoadGameConfig(const char *filename, struct GameConfig *config)
   sprintf(path, "%s%s/%s.cnf", pspGetAppDirectory(), ConfigDir, filename);
 
   /* If no configuration, load defaults */
-  if (!pspFileIoCheckIfExists(path))
+  if (!pspFileCheckIfExists(path))
   {
     free(path);
     InitGameConfig(config);
@@ -1482,7 +1482,7 @@ static int LoadResource(const char *filename, int slot)
 
 #ifdef MINIZIP
   /* Check if it's a zip file */
-  if (pspFileIoEndsWith(filename, "ZIP"))
+  if (pspFileEndsWith(filename, "ZIP"))
   {
     unzFile zip;
     unz_file_info fi;
@@ -1519,12 +1519,12 @@ static int LoadResource(const char *filename, int slot)
       }
 
       /* For ROM's, just load the first available one */
-      if (pspFileIoEndsWith(arch_file, "ROM"))
+      if (pspFileEndsWith(arch_file, "ROM"))
       {
         strcpy(fmsx_file, arch_file);
         break;
       }
-      else if (pspFileIoEndsWith(arch_file, "DSK"))
+      else if (pspFileEndsWith(arch_file, "DSK"))
       {
         /* Check the pre-extension char */
         char digit = arch_file[strlen(arch_file) - 5];
@@ -1581,7 +1581,7 @@ static int LoadResource(const char *filename, int slot)
   file_to_load = strdup(filename);
 
   /* Load disk image */
-  if (pspFileIoEndsWith(file_to_load, "DSK") || pspFileIoEndsWith(file_to_load, "DSK.GZ")) 
+  if (pspFileEndsWith(file_to_load, "DSK") || pspFileEndsWith(file_to_load, "DSK.GZ")) 
   {
     if (!ChangeDisk(slot, file_to_load))
     {
@@ -1592,7 +1592,7 @@ static int LoadResource(const char *filename, int slot)
 
     /* Set path as new disk path */
     free(DiskPath);
-    DiskPath = pspFileIoGetParentDirectory(filename);
+    DiskPath = pspFileGetParentDirectory(filename);
 
     free(Drive[slot]);
     Drive[slot] = file_to_load;
@@ -1600,7 +1600,7 @@ static int LoadResource(const char *filename, int slot)
     pspMenuSetHelpText(item, LoadedDeviceText);
   }
   /* Load cartridge */
-  else if (pspFileIoEndsWith(file_to_load, "ROM") || pspFileIoEndsWith(file_to_load, "ROM.GZ"))
+  else if (pspFileEndsWith(file_to_load, "ROM") || pspFileEndsWith(file_to_load, "ROM.GZ"))
   {
     if (!LoadCart(file_to_load, slot, ROMGUESS(slot)|ROMTYPE(slot)))
     {
@@ -1611,7 +1611,7 @@ static int LoadResource(const char *filename, int slot)
 
     /* Set path as new cart path */
     free(CartPath);
-    CartPath = pspFileIoGetParentDirectory(filename);
+    CartPath = pspFileGetParentDirectory(filename);
 
     /* Reset cartridge type */
     item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_CART_A_TYPE + slot);
@@ -1629,7 +1629,7 @@ static int LoadResource(const char *filename, int slot)
 
   /* Update menu item */
   if (item) 
-    pspMenuModifyOption(item->Options, pspFileIoGetFilename(filename), NULL);
+    pspMenuModifyOption(item->Options, pspFileGetFilename(filename), NULL);
 
   /* Clear the screen */
   pspImageClear(Screen, 0x8000);
@@ -1738,7 +1738,7 @@ int OnSaveStateOk(const void *gallery, const void *item)
   sprintf(path, "%s%s_%02i.sta", SaveStatePath, config_name, 
     ((const PspMenuItem*)item)->ID);
 
-  if (pspFileIoCheckIfExists(path) && pspUiConfirm("Load state?"))
+  if (pspFileCheckIfExists(path) && pspUiConfirm("Load state?"))
   {
     if (LoadState(path))
     {
@@ -1776,7 +1776,7 @@ int OnSaveStateButtonPress(const PspUiGallery *gallery,
     {
       if (button_mask & PSP_CTRL_SQUARE)
       {
-        if (pspFileIoCheckIfExists(path) && !pspUiConfirm("Overwrite existing state?"))
+        if (pspFileCheckIfExists(path) && !pspUiConfirm("Overwrite existing state?"))
           break;
 
         pspUiFlashMessage("Saving, please wait ...");
@@ -1813,10 +1813,10 @@ int OnSaveStateButtonPress(const PspUiGallery *gallery,
       }
       else if (button_mask & PSP_CTRL_TRIANGLE)
       {
-        if (!pspFileIoCheckIfExists(path) || !pspUiConfirm("Delete state?"))
+        if (!pspFileCheckIfExists(path) || !pspUiConfirm("Delete state?"))
           break;
 
-        if (!pspFileIoDelete(path))
+        if (!pspFileDelete(path))
         {
           pspUiAlert("ERROR: State not deleted");
           break;
@@ -1875,7 +1875,7 @@ static void DisplayStateTab()
   {
     sprintf(path, "%s%s_%02i.sta", SaveStatePath, config_name, item->ID);
 
-    if (pspFileIoCheckIfExists(path))
+    if (pspFileCheckIfExists(path))
     {
       if (sceIoGetstat(path, &stat) < 0)
         sprintf(caption, "ERROR");

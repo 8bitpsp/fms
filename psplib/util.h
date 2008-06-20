@@ -26,6 +26,11 @@ int pspUtilSaveVramSeq(const char *path, const char *filename);
 int pspUtilCompareDates(const ScePspDateTime *date1, 
                  const ScePspDateTime *date2);
 
+unsigned long pspUtilComputeMemCrc(unsigned long inCrc32, const void *buf,
+                                   size_t bufLen);
+int pspUtilComputeOpenFileCrc(FILE *file, unsigned long *outCrc32);
+int pspUtilComputeFileCrc(const char *path, unsigned long *outCrc32);
+
 #ifdef __cplusplus
 }
 #endif

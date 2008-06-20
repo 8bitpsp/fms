@@ -23,7 +23,7 @@
 #include "kybd.h"
 #include "perf.h"
 #include "util.h"
-#include "fileio.h"
+#include "file.h"
 #include "MenuPsp.h"
 #include "LibPsp.h"
 
@@ -429,7 +429,7 @@ static void OpenMenu()
 /*************************************************************/
 static void SwitchVolume(char *drive, int vol_iter)
 {
-  if (drive && pspFileIoEndsWith(drive, "DSK"))
+  if (drive && pspFileEndsWith(drive, "DSK"))
   {
     int pos = strlen(drive) - 5;
     char digit = drive[pos];
