@@ -37,6 +37,8 @@
 #include "MenuPsp.h"
 #include "Sound.h"
 
+#define MAX_ROMTYPE_MAPPINGS 500
+
 #define TAB_QUICKLOAD 0
 #define TAB_STATE     1
 #define TAB_CONTROL   2
@@ -98,6 +100,7 @@ char *ROM[MAXCARTS];
 char *Drive[MAXDRIVES];
 char *CartPath;
 char *DiskPath;
+static unsigned long Crc32[MAXCARTS];
 static char *Quickload;
 static int TabIndex;
 static int ExitMenu;
@@ -135,6 +138,20 @@ static int LoadState(const char *path);
 static PspImage* SaveState(const char *path, const PspImage *icon);
 
 #define CART_TYPE_AUTODETECT 8
+
+typedef struct {
+  unsigned long  Crc;
+  unsigned short RomType;
+} RomTypeMapping;
+
+/* WARNING: RomTypeMapping is padded to 8 bytes; overriding it */
+/* to write only 6. If RomTypeMapping changes, adjust this number */
+/* accordingly! */
+#define ROMTYPE_MAPPING_SIZE 6
+
+RomTypeMapping RomTypeMappings[MAX_ROMTYPE_MAPPINGS];
+static int     RomTypeMappingCount = 0;
+static int     RomTypeMappingModified = 0;
 
 /* Tab labels */
 static const char *TabLabel[] = 
@@ -519,6 +536,11 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item,
 
 const char* OnSplashGetStatusBarText(const struct PspUiSplash *splash);
 
+static void SetRomType(unsigned long crc, unsigned short rom_type);
+static unsigned short GetRomType(unsigned long crc);
+static int SaveRomTypeMappings();
+static int LoadRomTypeMappings();
+
 PspUiFileBrowser QuickloadBrowser = 
 {
   OnGenericRender,
@@ -586,7 +608,7 @@ PspUiSplash SplashScreen =
   OnSplashButtonPress,
   OnSplashGetStatusBarText
 };
-  
+
 void InitMenu()
 {
   int i;
@@ -644,9 +666,6 @@ void InitMenu()
   /* Initialize configuration */
   InitGameConfig(&GameConfig);
 
-  /* Initialize options */
-  LoadOptions();
-
   /* Initialize UI components */
   UiMetric.Background = Background;
   UiMetric.Font = &PspStockFont;
@@ -677,6 +696,14 @@ void InitMenu()
   UiMetric.TitleColor = PSP_COLOR_WHITE;
   UiMetric.MenuFps = 30;
   UiMetric.TabBgColor = PSP_COLOR_WHITE;
+
+  /* Initialize ROM type mappings */
+  RomTypeMappingCount = 0;
+  RomTypeMappingModified = 0;
+
+  /* Initialize options */
+  LoadOptions();
+  LoadRomTypeMappings();
 
   /* If this is going to take a while... */
   if (Use2413 || Use8950) 
@@ -843,6 +870,9 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, PspMenuItem* item,
         return 0;
 
       SETROMTYPE(item->ID - SYSTEM_CART_A_TYPE, (int)option->Value);
+      SetRomType(Crc32[item->ID - SYSTEM_CART_A_TYPE], 
+        (unsigned short)(int)option->Value);
+
       ResetMSX(Mode,RAMPages,VRAMPages);
       break;
 
@@ -1479,6 +1509,7 @@ static int LoadResource(const char *filename, int slot)
 {
   PspMenuItem *item = NULL;
   char *file_to_load = NULL;
+  int compressed = 0;
 
 #ifdef MINIZIP
   /* Check if it's a zip file */
@@ -1489,6 +1520,7 @@ static int LoadResource(const char *filename, int slot)
     unz_global_info gi;
     char arch_file[255], fmsx_file[255];
     fmsx_file[0] = '\0';
+    compressed = 1;
 
     /* Open archive for reading */
     if (!(zip = unzOpen(filename)))
@@ -1521,6 +1553,7 @@ static int LoadResource(const char *filename, int slot)
       /* For ROM's, just load the first available one */
       if (pspFileEndsWith(arch_file, "ROM"))
       {
+        Crc32[slot] = fi.crc;
         strcpy(fmsx_file, arch_file);
         break;
       }
@@ -1602,6 +1635,13 @@ static int LoadResource(const char *filename, int slot)
   /* Load cartridge */
   else if (pspFileEndsWith(file_to_load, "ROM") || pspFileEndsWith(file_to_load, "ROM.GZ"))
   {
+    /* If uncompressed, get file CRC */
+    if (!compressed)
+      pspUtilComputeFileCrc(file_to_load, &Crc32[slot]);
+
+    /* Initialize cart type */
+    unsigned int cart_type = GetRomType(Crc32[slot]);
+
     if (!LoadCart(file_to_load, slot, ROMGUESS(slot)|ROMTYPE(slot)))
     {
       free(file_to_load);
@@ -1609,13 +1649,15 @@ static int LoadResource(const char *filename, int slot)
       return 0;
     }
 
+    SETROMTYPE(slot, cart_type);
+
     /* Set path as new cart path */
     free(CartPath);
     CartPath = pspFileGetParentDirectory(filename);
 
     /* Reset cartridge type */
     item = pspMenuFindItemById(SystemUiMenu.Menu, SYSTEM_CART_A_TYPE + slot);
-    pspMenuSelectOptionByValue(item, (void*)CART_TYPE_AUTODETECT);
+    pspMenuSelectOptionByValue(item, (void*)cart_type);
 
     free(ROM[slot]);
     ROM[slot] = file_to_load;
@@ -1887,7 +1929,7 @@ static void DisplayStateTab()
           sel = item;
           latest = stat.st_mtime;
         }
-        
+
         sprintf(caption, "%02i/%02i/%02i %02i:%02i", 
           stat.st_mtime.month,
           stat.st_mtime.day,
@@ -1909,11 +1951,11 @@ static void DisplayStateTab()
   }
 
   free(path);
-  
+
   /* Highlight the latest save state if none are selected */
   if (SaveStateGallery.Menu->Selected == NULL)
     SaveStateGallery.Menu->Selected = sel;
-  
+
   pspUiOpenGallery(&SaveStateGallery, game_name);
   free(game_name);
 
@@ -1923,6 +1965,97 @@ static void DisplayStateTab()
       pspImageDestroy((PspImage*)item->Icon);
 }
 
+static void SetRomType(unsigned long crc, unsigned short rom_type)
+{
+  /* Find current setting (if present) */
+  int i;
+  for (i = 0; i < RomTypeMappingCount; i++)
+    if (RomTypeMappings[i].Crc == crc)
+    {
+      if (rom_type == CART_TYPE_AUTODETECT)
+        /* Don't keep "autodetect" mappings; remove from list */
+        RomTypeMappings[i] = RomTypeMappings[--RomTypeMappingCount];
+      else
+        /* Override current setting */
+        RomTypeMappings[i].RomType = rom_type;
+
+      RomTypeMappingModified = 1;
+      return;
+    }
+
+  /* New mapping */
+  if (RomTypeMappingCount + 1 < MAX_ROMTYPE_MAPPINGS)
+  {
+    /* Make sure this will not put us over the limit */
+    RomTypeMappings[RomTypeMappingCount].Crc = crc;
+    RomTypeMappings[RomTypeMappingCount++].RomType = rom_type;
+    RomTypeMappingModified = 1;
+  }
+}
+
+static unsigned short GetRomType(unsigned long crc)
+{
+  /* Find current setting (if present) */
+  int i;
+  for (i = 0; i < RomTypeMappingCount; i++)
+    if (RomTypeMappings[i].Crc == crc)
+      return RomTypeMappings[i].RomType;
+
+  return CART_TYPE_AUTODETECT;
+}
+
+static int SaveRomTypeMappings()
+{
+  /* Don't save if nothing changed */
+  if (!RomTypeMappingModified)
+    return 1;
+
+  char file_path[PSP_FILE_MAX_PATH_LEN];
+  sprintf(file_path, "%srommaps.bin", pspGetAppDirectory());
+
+  FILE *file;
+  if ((file = fopen(file_path, "w")) == NULL)
+    return 0;
+
+  int i, error = 0;
+  for (i = 0; i < RomTypeMappingCount; i++)
+    if (fwrite(&RomTypeMappings[i], ROMTYPE_MAPPING_SIZE, 1, file) != 1)
+    {
+      error = 1;
+      break;
+    }
+
+  RomTypeMappingModified = 0;
+  fclose(file);
+
+  return !error;
+}
+
+static int LoadRomTypeMappings()
+{
+  char file_path[PSP_FILE_MAX_PATH_LEN];
+  sprintf(file_path, "%srommaps.bin", pspGetAppDirectory());
+
+  FILE *file;
+  if ((file = fopen(file_path, "r")) == NULL)
+    return 0;
+
+  int i = 0, error = 0;
+  while (fread(&RomTypeMappings[i], ROMTYPE_MAPPING_SIZE, 1, file) == 1)
+  {
+    if (++i >= MAX_ROMTYPE_MAPPINGS)
+    {
+      error = 1;
+      break;
+    }
+  }
+
+  RomTypeMappingCount = i;
+  fclose(file);
+
+  return !error;
+}
+
 /* Clean up any used resources */
 void TrashMenu()
 {
@@ -1930,6 +2063,7 @@ void TrashMenu()
 
   /* Save options */
   SaveOptions();
+  SaveRomTypeMappings();
 
   /* Free memory */
   for (i=0; i<MAXCARTS; i++) if (ROM[i]) free(ROM[i]);

@@ -23,6 +23,10 @@
 #include "file.h"
 #include "video.h"
 
+#ifdef ZLIB
+#include <zlib.h>
+#endif
+
 #define CRC_BUFFER_SIZE  8192
 
 int pspUtilSavePngSeq(const char *path, const char *filename, const PspImage *image)
@@ -73,18 +77,6 @@ int pspUtilCompareDates(const ScePspDateTime *date1,
   return 0;
 }
 
-int pspUtilComputeFileCrc(const char *path, unsigned long *outCrc32)
-{
-  FILE *file;
-  if (!(file = fopen(path, "r")))
-    return 0;
-
-  int status = pspUtilComputeOpenFileCrc(file, outCrc32);
-  fclose(file);
-
-  return status;
-}
-
 int pspUtilComputeOpenFileCrc(FILE *file, unsigned long *outCrc32)
 {
   unsigned char buf[CRC_BUFFER_SIZE];
@@ -92,19 +84,57 @@ int pspUtilComputeOpenFileCrc(FILE *file, unsigned long *outCrc32)
 
   /** accumulate crc32 from file **/
   *outCrc32 = 0;
-  while (1) 
+  for (;;)
   {
       if ((bufLen = fread( buf, 1, CRC_BUFFER_SIZE, file )) == 0) 
       {
           if (ferror(file)) 
-            return -1;
+            return 0;
           break;
       }
       *outCrc32 = pspUtilComputeMemCrc(*outCrc32, buf, bufLen);
   }
 
-  return 0;
+  return 1;
 }
+
+#ifdef ZLIB
+#define fopen           gzopen
+#define fclose          gzclose
+#define fread(B,L,N,F)  gzread(F,B,(L)*(N))
+#endif
+
+int pspUtilComputeFileCrc(const char *path, unsigned long *outCrc32)
+{
+  FILE *file;
+  if (!(file = fopen(path, "r")))
+    return 0;
+
+  unsigned char buf[CRC_BUFFER_SIZE];
+  size_t bufLen;
+  int error = 0;
+
+  *outCrc32 = 0;
+  for (;;)
+  {
+      if ((bufLen = fread( buf, 1, CRC_BUFFER_SIZE, file )) == 0) 
+      {
+          if (ferror(file)) 
+            error = 1;
+          break;
+      }
+      *outCrc32 = pspUtilComputeMemCrc(*outCrc32, buf, bufLen);
+  }
+
+  fclose(file);
+  return !error;
+}
+
+#ifdef ZLIB
+#undef fopen
+#undef fclose
+#undef fread
+#endif
 
 unsigned long pspUtilComputeMemCrc(unsigned long inCrc32, const void *buf,
                                    size_t bufLen)
@@ -158,4 +188,3 @@ unsigned long pspUtilComputeMemCrc(unsigned long inCrc32, const void *buf,
     crc32 = (crc32 >> 8) ^ crcTable[ (crc32 ^ byteBuf[i]) & 0xFF ];
   return( crc32 ^ 0xFFFFFFFF );
 }
-

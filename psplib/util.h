@@ -24,7 +24,7 @@ int pspUtilSavePngSeq(const char *path, const char *filename, const PspImage *im
 int pspUtilSaveVramSeq(const char *path, const char *filename);
 
 int pspUtilCompareDates(const ScePspDateTime *date1, 
-                 const ScePspDateTime *date2);
+                        const ScePspDateTime *date2);
 
 unsigned long pspUtilComputeMemCrc(unsigned long inCrc32, const void *buf,
                                    size_t bufLen);

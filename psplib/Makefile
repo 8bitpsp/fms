@@ -2,7 +2,7 @@
 # Akop Karapetyan, 2007-2008
 
 ifndef PSP_FW_VERSION
-PSP_FW_VERSION=200
+PSP_FW_VERSION=150
 endif
 
 CC=psp-gcc
@@ -11,7 +11,7 @@ RANLIB=psp-ranlib
 RM=rm -rf
 PSPSDK=$(shell psp-config --pspsdk-path)
 CFLAGS=-O2 -G0 -Wall -I$(PSPSDK)/include
-DEFINES=-D_PSP_FW_VERSION=$(PSP_FW_VERSION)
+DEFINES=-D_PSP_FW_VERSION=$(PSP_FW_VERSION) -DZLIB
 
 all: libmypsp.a
 

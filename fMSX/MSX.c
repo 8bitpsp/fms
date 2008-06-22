@@ -45,8 +45,8 @@
 #endif
 
 #ifdef ALTSOUND
-extern const int Use2413;    /* MSX-MUSIC emulation (1-yes) */
-extern const int Use8950;    /* MSX-AUDIO emulation (1-yes) */
+extern int Use2413;    /* MSX-MUSIC emulation (1-yes) */
+extern int Use8950;    /* MSX-AUDIO emulation (1-yes) */
 #endif
 
 #define PRINTOK           if(Verbose) puts("OK")
