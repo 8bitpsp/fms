@@ -1973,8 +1973,11 @@ static void SetRomType(unsigned long crc, unsigned short rom_type)
     if (RomTypeMappings[i].Crc == crc)
     {
       if (rom_type == CART_TYPE_AUTODETECT)
+      {
         /* Don't keep "autodetect" mappings; remove from list */
-        RomTypeMappings[i] = RomTypeMappings[--RomTypeMappingCount];
+        if (--RomTypeMappingCount > 0)
+          RomTypeMappings[i] = RomTypeMappings[RomTypeMappingCount];
+      }
       else
         /* Override current setting */
         RomTypeMappings[i].RomType = rom_type;
