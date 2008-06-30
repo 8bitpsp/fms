@@ -52,6 +52,7 @@
 #define SPC_PDISK 3
 #define SPC_NDISK 4
 #define SPC_PAUSE 5
+#define SPC_FF    6
 
 #define DISPLAY_MODE_UNSCALED    0
 #define DISPLAY_MODE_FIT_HEIGHT  1

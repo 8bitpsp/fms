@@ -52,6 +52,7 @@ typedef unsigned short pixel;
 static unsigned int BPal[256],XPal[80],XPal0; 
 static byte JoyState;
 static int MouseState;
+static int FastForward;
 
 /** Sound-related definitions ********************************/
 static int SndSwitch = (1<<MAXCHANNELS)-1;
@@ -254,16 +255,19 @@ void PutImage(void)
 
   pspVideoEnd();
 
-  /* Wait if needed */
-  if (FrameLimiter)
+  if (!FastForward)
   {
-    do { sceRtcGetCurrentTick(&CurrentTick); }
-    while (CurrentTick - LastTick < TicksPerUpdate);
-    LastTick = CurrentTick;
-  }
+    /* Wait if needed */
+    if (FrameLimiter)
+    {
+      do { sceRtcGetCurrentTick(&CurrentTick); }
+      while (CurrentTick - LastTick < TicksPerUpdate);
+      LastTick = CurrentTick;
+    }
 
-  /* Wait for VSync signal */
-  if (VSync) pspVideoWaitVSync();
+    /* Wait for VSync signal */
+    if (VSync) pspVideoWaitVSync();
+  }
 
   /* Swap buffers */
   pspVideoSwapBuffers();
@@ -410,6 +414,7 @@ static void OpenMenu()
     sceRtcGetCurrentTick(&LastTick);
   }
 
+  FastForward = 0;
   Frame = 0;
   ShowKybdHeld = 0;
   ClearScreen = 1;
@@ -507,6 +512,11 @@ static void HandleSpecialInput(int code, int on)
       SwitchVolume(Drive[0], -1);
 
     PrevDiskHeld = on;
+    break;
+
+  case SPC_FF:
+
+    FastForward = on;
     break;
   }
 }

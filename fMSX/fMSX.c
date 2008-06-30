@@ -16,17 +16,28 @@
 
 #include <pspkernel.h>
 
+#include "adhoc.h"
 #include "audio.h"
 #include "video.h"
 #include "psp.h"
 #include "ctrl.h"
+#include "file.h"
 
 #include "MSX.h"
 #include "MenuPsp.h"
 #include "Sound.h"
 
+#if (_PSP_FW_VERSION == 150)
+/* Kernel mode */
+PSP_MODULE_INFO(PSP_APP_NAME, 0x1000, 1, 1);
+PSP_MAIN_THREAD_ATTR(0);
+#else
+/* User mode */
 PSP_MODULE_INFO(PSP_APP_NAME, 0, 1, 1);
-PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
+PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER);
+#endif
+
+static char app_path[PSP_FILE_MAX_PATH_LEN];
 
 static void ExitCallback(void* arg)
 {
@@ -34,18 +45,10 @@ static void ExitCallback(void* arg)
   ExitPSP = 1;
 }
 
-/** main() ***************************************************/
-/** This is a main() function used in PSP port.             **/
-/*************************************************************/
-int main(int argc,char *argv[])
+int user_main()
 {
-#ifdef DEBUG
-  CPU.Trap  = 0xFFFF;
-  CPU.Trace = 0;
-#endif
-
   /* Initialize PSP */
-  pspInit(argv[0]);
+  pspInit(app_path);
   pspAudioInit(SND_BUFSIZE, 0);
   pspCtrlInit();
   pspVideoInit();
@@ -85,4 +88,28 @@ int main(int argc,char *argv[])
   pspShutdown();
 
   return(0);
+}
+
+int main(int argc,char *argv[])
+{
+  int ret_val = 0;
+  strcpy(app_path, (char*)argv[0]);
+
+  pspAdhocLoadDrivers();
+
+#if (_PSP_FW_VERSION == 150)
+  /* Create user thread */
+  SceUID thid = sceKernelCreateThread("User Mode Thread", user_main,
+    0x11, // default priority
+    256 * 1024, // stack size (256KB is regular default)
+    PSP_THREAD_ATTR_USER, NULL);
+
+  /* Start user thread; wait for it to complete */
+  sceKernelStartThread(thid, 0, 0);
+  sceKernelWaitThreadEnd(thid, NULL);
+#else
+  ret_val = user_main();
+#endif
+
+  return ret_val;
 }

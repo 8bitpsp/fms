@@ -37,8 +37,6 @@
 #include "MenuPsp.h"
 #include "Sound.h"
 
-#define MAX_ROMTYPE_MAPPINGS 500
-
 #define TAB_QUICKLOAD 0
 #define TAB_STATE     1
 #define TAB_CONTROL   2
@@ -148,10 +146,17 @@ typedef struct {
 /* to write only 6. If RomTypeMapping changes, adjust this number */
 /* accordingly! */
 #define ROMTYPE_MAPPING_SIZE 6
+#define MAX_ROMTYPE_MAPPINGS 500
 
-RomTypeMapping RomTypeMappings[MAX_ROMTYPE_MAPPINGS];
-static int     RomTypeMappingCount = 0;
-static int     RomTypeMappingModified = 0;
+RomTypeMapping RomTypeMappings[MAX_ROMTYPE_MAPPINGS] = 
+{
+  { 0x089c8164, 0x05 }, /* Zanac Ex */
+  { 0xebccb796, 0x04 }, /* Mon Mon Monster */
+  { 0x00000000, 0x00 }  /* End marker */
+};
+
+static int RomTypeCustomStart     = MAX_ROMTYPE_MAPPINGS;
+static int RomTypeMappingModified = 0;
 
 /* Tab labels */
 static const char *TabLabel[] = 
@@ -263,10 +268,11 @@ static const PspMenuOptionDef
     /* Unmapped */
     MENU_OPTION("None", 0),
     /* Special */
-    MENU_OPTION("Special: Open Menu",       (SPC|SPC_MENU)),  
+    MENU_OPTION("Special: Open Menu",       (SPC|SPC_MENU)),
     MENU_OPTION("Special: Show keyboard",   (SPC|SPC_KYBD)),
-    MENU_OPTION("Special: Previous volume", (SPC|SPC_PDISK)), 
+    MENU_OPTION("Special: Previous volume", (SPC|SPC_PDISK)),
     MENU_OPTION("Special: Next volume",     (SPC|SPC_NDISK)),
+    MENU_OPTION("Special: Fast forward",    (SPC|SPC_FF)),
     /* Joystick */
     MENU_OPTION("Joystick Up",       (JST|JST_UP)),
     MENU_OPTION("Joystick Down",     (JST|JST_DOWN)),
@@ -698,8 +704,9 @@ void InitMenu()
   UiMetric.TabBgColor = PSP_COLOR_WHITE;
 
   /* Initialize ROM type mappings */
-  RomTypeMappingCount = 0;
   RomTypeMappingModified = 0;
+  for (i = 0; RomTypeMappings[i].Crc != 0 && i < MAX_ROMTYPE_MAPPINGS; i++);
+  RomTypeCustomStart = i; /* Custom ROM types start here */
 
   /* Initialize options */
   LoadOptions();
@@ -1649,7 +1656,10 @@ static int LoadResource(const char *filename, int slot)
       return 0;
     }
 
-    SETROMTYPE(slot, cart_type);
+    /* For some reason, setting ROM type for autodetect   */
+    /* causes MEGAROM and other games to stop functioning */
+    if (cart_type != CART_TYPE_AUTODETECT)
+      SETROMTYPE(slot, cart_type);
 
     /* Set path as new cart path */
     free(CartPath);
@@ -1969,14 +1979,19 @@ static void SetRomType(unsigned long crc, unsigned short rom_type)
 {
   /* Find current setting (if present) */
   int i;
-  for (i = 0; i < RomTypeMappingCount; i++)
+  for (i = 0; RomTypeMappings[i].Crc != 0 && i < MAX_ROMTYPE_MAPPINGS; i++)
+  {
     if (RomTypeMappings[i].Crc == crc)
     {
       if (rom_type == CART_TYPE_AUTODETECT)
       {
         /* Don't keep "autodetect" mappings; remove from list */
-        if (--RomTypeMappingCount > 0)
-          RomTypeMappings[i] = RomTypeMappings[RomTypeMappingCount];
+        /* Find the last mapping */
+        int j;
+        for (j = i + 1; RomTypeMappings[j].Crc != 0 && j < MAX_ROMTYPE_MAPPINGS; j++);
+        if (--j != i)
+          RomTypeMappings[i] = RomTypeMappings[j]; /* Copy last to current   */
+        RomTypeMappings[j].Crc = 0;                /* Mark last as 'deleted' */
       }
       else
         /* Override current setting */
@@ -1985,13 +2000,13 @@ static void SetRomType(unsigned long crc, unsigned short rom_type)
       RomTypeMappingModified = 1;
       return;
     }
+  }
 
   /* New mapping */
-  if (RomTypeMappingCount + 1 < MAX_ROMTYPE_MAPPINGS)
+  if (i < MAX_ROMTYPE_MAPPINGS)
   {
-    /* Make sure this will not put us over the limit */
-    RomTypeMappings[RomTypeMappingCount].Crc = crc;
-    RomTypeMappings[RomTypeMappingCount++].RomType = rom_type;
+    RomTypeMappings[i].Crc = crc;
+    RomTypeMappings[i].RomType = rom_type;
     RomTypeMappingModified = 1;
   }
 }
@@ -2000,7 +2015,7 @@ static unsigned short GetRomType(unsigned long crc)
 {
   /* Find current setting (if present) */
   int i;
-  for (i = 0; i < RomTypeMappingCount; i++)
+  for (i = 0; RomTypeMappings[i].Crc != 0 && i < MAX_ROMTYPE_MAPPINGS; i++)
     if (RomTypeMappings[i].Crc == crc)
       return RomTypeMappings[i].RomType;
 
@@ -2021,12 +2036,15 @@ static int SaveRomTypeMappings()
     return 0;
 
   int i, error = 0;
-  for (i = 0; i < RomTypeMappingCount; i++)
+  for (i = RomTypeCustomStart; 
+       RomTypeMappings[i].Crc != 0 && i < MAX_ROMTYPE_MAPPINGS; i++)
+  {
     if (fwrite(&RomTypeMappings[i], ROMTYPE_MAPPING_SIZE, 1, file) != 1)
     {
       error = 1;
       break;
     }
+  }
 
   RomTypeMappingModified = 0;
   fclose(file);
@@ -2043,7 +2061,10 @@ static int LoadRomTypeMappings()
   if ((file = fopen(file_path, "r")) == NULL)
     return 0;
 
-  int i = 0, error = 0;
+  /* Start overwriting from custom slot marker */
+  int i = RomTypeCustomStart, error = 0;
+
+  /* Read in the rest */
   while (fread(&RomTypeMappings[i], ROMTYPE_MAPPING_SIZE, 1, file) == 1)
   {
     if (++i >= MAX_ROMTYPE_MAPPINGS)
@@ -2053,9 +2074,7 @@ static int LoadRomTypeMappings()
     }
   }
 
-  RomTypeMappingCount = i;
   fclose(file);
-
   return !error;
 }
 
