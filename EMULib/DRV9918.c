@@ -7,12 +7,11 @@
 /** TMS9918.h for declarations and TMS9918.c for the main   **/
 /** code.                                                   **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2007                 **/
+/** Copyright (C) Marat Fayzullin 1996-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
 /*************************************************************/
-#include <stdio.h>
 #include "TMS9918.h"
 
 /** Static Functions *****************************************/

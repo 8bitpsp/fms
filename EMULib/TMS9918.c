@@ -6,7 +6,7 @@
 /** produced by Texas Instruments. See TMS9918.h for        **/
 /** declarations.                                           **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2007                 **/
+/** Copyright (C) Marat Fayzullin 1996-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -38,15 +38,15 @@ RGB Palette9918[16*3] =
   {0x3E,0x9F,0x2F},{0xB6,0x64,0xC7},{0xCC,0xCC,0xCC},{0xFF,0xFF,0xFF}
 };
 
-/** Screen[] *************************************************/
+/** Screen9918[] *********************************************/
 /** Pointer to the scanline refresh handlers and VDP table  **/
 /** address masks for the standard TMS9918 screen modes.    **/
 /*************************************************************/
-static struct
+struct
 {
   void (*LineHandler)(TMS9918 *VDP,byte Y);
   byte R2,R3,R4,R5,R6;
-} Screen[4] =
+} Screen9918[4] =
 {
   { RefreshLine0,0x7F,0x00,0x3F,0x00,0x3F },/* SCREEN 0:TEXT 40x24    */
   { RefreshLine1,0x7F,0xFF,0x3F,0xFF,0x3F },/* SCREEN 1:TEXT 32x24    */
@@ -184,29 +184,29 @@ byte Write9918(TMS9918 *VDP,byte R,byte V)
       if((V!=VDP->Mode)||!VRAMMask)
       {
         VRAMMask    = TMS9918_VRAMMask(VDP);
-        VDP->ChrTab = VDP->VRAM+(((int)(VDP->R[2]&Screen[V].R2)<<10)&VRAMMask);
-        VDP->ColTab = VDP->VRAM+(((int)(VDP->R[3]&Screen[V].R3)<<6)&VRAMMask);
-        VDP->ChrGen = VDP->VRAM+(((int)(VDP->R[4]&Screen[V].R4)<<11)&VRAMMask);
-        VDP->SprTab = VDP->VRAM+(((int)(VDP->R[5]&Screen[V].R5)<<7)&VRAMMask);
-        VDP->SprGen = VDP->VRAM+(((int)(VDP->R[6]&Screen[V].R6)<<11)&VRAMMask);
+        VDP->ChrTab = VDP->VRAM+(((int)(VDP->R[2]&Screen9918[V].R2)<<10)&VRAMMask);
+        VDP->ColTab = VDP->VRAM+(((int)(VDP->R[3]&Screen9918[V].R3)<<6)&VRAMMask);
+        VDP->ChrGen = VDP->VRAM+(((int)(VDP->R[4]&Screen9918[V].R4)<<11)&VRAMMask);
+        VDP->SprTab = VDP->VRAM+(((int)(VDP->R[5]&Screen9918[V].R5)<<7)&VRAMMask);
+        VDP->SprGen = VDP->VRAM+(((int)(VDP->R[6]&Screen9918[V].R6)<<11)&VRAMMask);
         VDP->Mode   = V;
       }
       break;
 
     case 2: /* Name Table */
-      VDP->ChrTab=VDP->VRAM+(((int)(V&Screen[VDP->Mode].R2)<<10)&VRAMMask);
+      VDP->ChrTab=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R2)<<10)&VRAMMask);
       break;
     case 3: /* Color Table */
-      VDP->ColTab=VDP->VRAM+(((int)(V&Screen[VDP->Mode].R3)<<6)&VRAMMask);
+      VDP->ColTab=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R3)<<6)&VRAMMask);
       break;
     case 4: /* Pattern Table */
-      VDP->ChrGen=VDP->VRAM+(((int)(V&Screen[VDP->Mode].R4)<<11)&VRAMMask);
+      VDP->ChrGen=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R4)<<11)&VRAMMask);
       break;
     case 5: /* Sprite Attributes */
-      VDP->SprTab=VDP->VRAM+(((int)(V&Screen[VDP->Mode].R5)<<7)&VRAMMask);
+      VDP->SprTab=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R5)<<7)&VRAMMask);
       break;
     case 6: /* Sprite Patterns */
-      VDP->SprGen=VDP->VRAM+(((int)(V&Screen[VDP->Mode].R6)<<11)&VRAMMask);
+      VDP->SprGen=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R6)<<11)&VRAMMask);
       break;
 
     case 7: /* Foreground and background colors */
@@ -239,7 +239,7 @@ byte Loop9918(TMS9918 *VDP)
   /* If refreshing display area, call scanline handler */
   if((VDP->Line>=TMS9918_START_LINE)&&(VDP->Line<TMS9918_END_LINE))
     if(VDP->UCount>=100)
-      Screen[VDP->Mode].LineHandler(VDP,VDP->Line-TMS9918_START_LINE);
+      Screen9918[VDP->Mode].LineHandler(VDP,VDP->Line-TMS9918_START_LINE);
 
   /* If time for VBlank... */
   if(VDP->Line==TMS9918_END_LINE)

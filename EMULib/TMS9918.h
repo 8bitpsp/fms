@@ -6,7 +6,7 @@
 /** produced by Texas Instruments. See files TMS9918.c and  **/
 /** DRV9918.c for implementation.                           **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2007                 **/
+/** Copyright (C) Marat Fayzullin 1996-2008                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/

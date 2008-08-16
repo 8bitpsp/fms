@@ -239,12 +239,15 @@ int StartColeco(const char *Cartridge)
   ResetColeco(Mode);
 
   /* Load cartridge */
-  if(Verbose) printf("  Opening %s...",Cartridge);
-  J=LoadROM(Cartridge);
-  if(Verbose)
+  if(Cartridge)
   {
-    if(J) printf("%d bytes loaded...OK\n",J);
-    else  printf("FAILED\n");
+    if(Verbose) printf("  Opening %s...",Cartridge);
+    J=LoadROM(Cartridge);
+    if(Verbose)
+    {
+      if(J) printf("%d bytes loaded...OK\n",J);
+      else  printf("FAILED\n");
+    }
   }
 
   if(Verbose) printf("RUNNING ROM CODE...\n");
