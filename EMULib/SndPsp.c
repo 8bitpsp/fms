@@ -22,11 +22,11 @@
 #include "emu2413.h"
 #endif
 
-#include "audio.h"
+#include "pl_snd.h"
 #include "Sound.h"
 
-static void MixAudio(PspMonoSample *buffer, unsigned int length);
-static void AudioCallback(void *buf, unsigned int *length, void *userdata);
+static void MixAudio(short *buffer, unsigned int length);
+static void AudioCallback(pl_snd_sample *buf, unsigned int samples, void *userdata);
 
 #if defined(FMSX) && defined(ALTSOUND)
 #define MSX_CLK 3579545
@@ -54,12 +54,12 @@ static int SndRate     = 0;  /* Audio sampling rate          */
 /** StopSound() **********************************************/
 /** Temporarily suspend sound.                              **/
 /*************************************************************/
-void StopSound(void) { pspAudioSetChannelCallback(0, 0, 0); }
+void StopSound(void) { pl_snd_pause(0); }
 
 /** ResumeSound() ********************************************/
 /** Resume sound after StopSound().                         **/
 /*************************************************************/
-void ResumeSound(void) { pspAudioSetChannelCallback(0, AudioCallback, 0); }
+void ResumeSound(void) { pl_snd_resume(0); }
 
 /** InitAudio() **********************************************/
 /** Initialize sound. Returns rate (Hz) on success, else 0. **/
@@ -68,6 +68,8 @@ void ResumeSound(void) { pspAudioSetChannelCallback(0, AudioCallback, 0); }
 unsigned int InitAudio(unsigned int Rate,unsigned int Latency)
 {
   TrashAudio();
+
+  pl_snd_set_callback(0, AudioCallback, 0);
 
   /* Only 44100 supported */
   if(Rate != 44100) return(SndRate = 0);
@@ -152,16 +154,16 @@ void TrashAudio(void)
 /** AudioCallback() ******************************************/
 /** Called by the system to render sound                    **/
 /*************************************************************/
-static void AudioCallback(void* buf, unsigned int *length, void *userdata)
+static void AudioCallback(pl_snd_sample *buf, unsigned int samples, void *userdata)
 {
-  MixAudio((PspMonoSample*)buf, *length);
+  MixAudio((short*)buf, samples);
 }
 
 /** AudioCallback() ******************************************/
 /** Writes sound to the output buffer,                      **/
 /** mixing as necessary                                     **/
 /*************************************************************/
-static void MixAudio(PspMonoSample *buffer, unsigned int length)
+static void MixAudio(short *buffer, unsigned int length)
 {
   register int J;
 
@@ -179,7 +181,7 @@ static void MixAudio(PspMonoSample *buffer, unsigned int length)
     R=P*FactorPSG+O*Factor2413+A*Factor8950+S*FactorSCC;
 
     /* Write to output buffer */
-    (buffer++)->Channel = (R>32767)?32767:(R<-32768)?-32768:R;
+    *buffer++ = (R>32767)?32767:(R<-32768)?-32768:R;
   }
 #else
   /* Mix sound */
@@ -189,7 +191,7 @@ static void MixAudio(PspMonoSample *buffer, unsigned int length)
 
   /* Write to output buffer */
   for(J=0;J<length;J++)
-    (buffer++)->Channel = SndData[J];
+    *buffer++ = SndData[J];
 #endif
 }
 

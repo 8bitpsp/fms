@@ -1,5 +1,5 @@
 PSPSDK=$(shell psp-config --pspsdk-path)
-PSPLIB=psplib
+PSPLIB=libpsp
 
 DEFINES += -DPSP -DLSB_FIRST -DBPP16 -DSOUND -DZLIB \
            -DPSP_APP_VER=\"$(PSP_APP_VER)\" -DPSP_APP_NAME="\"$(PSP_APP_NAME)\""
@@ -23,7 +23,7 @@ CXXFLAGS += $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS += $(CFLAGS)
 
 LIBDIR += $(PSPLIB)
-LIBS += -lmypsp -lpspgu -lpspaudio -lpsprtc -lpsppower -lpng -lz -lm \
+LIBS += -lpsplib -lpspgu -lpspaudio -lpsprtc -lpsppower -lpng -lz -lm \
         -lpspwlan -lpspnet_adhoc -lpspnet_adhocctl -lpspnet_adhocmatching
 EXTRA_TARGETS=EBOOT.PBP
 

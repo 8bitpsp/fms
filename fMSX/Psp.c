@@ -20,10 +20,10 @@
 
 #include "video.h"
 #include "ctrl.h"
-#include "kybd.h"
-#include "perf.h"
-#include "util.h"
-#include "file.h"
+#include "pl_vk.h"
+#include "pl_gfx.h"
+#include "pl_perf.h"
+#include "pl_file.h"
 #include "MenuPsp.h"
 #include "LibPsp.h"
 
@@ -91,8 +91,8 @@ static int ShowKybdHeld;
 static int MessageTimer;
 static char Message[250];
 
-static PspKeyboardLayout *KeyLayout;
-static PspFpsCounter FpsCounter;
+static pl_vk_layout KeyLayout;
+static pl_perf_counter FpsCounter;
 
 static void OpenMenu();
 static void ResetInput();
@@ -117,12 +117,8 @@ int InitMachine(void)
   pspImageClear(Screen, 0x8000);
 
   /* Initialize keyboard */
-  if (!(KeyLayout = pspKybdLoadLayout("msx.lyt", 
-    GetKeyStatus, HandleKeyboardInput)))
-  {
-    pspImageDestroy(Screen);
-    return(0);
-  }
+  pl_vk_load(&KeyLayout, "system/msx.l2", 
+                         "system/msx.png", GetKeyStatus, HandleKeyboardInput);
 
   /* Initialize menu */
   InitMenu();
@@ -136,7 +132,7 @@ int InitMachine(void)
   NextDiskHeld=0;
   PrevDiskHeld=0;
   MessageTimer=0;
-  pspPerfInitFps(&FpsCounter);
+  pl_perf_init_counter(&FpsCounter);
   ClearScreen=0;
 
   /* Reset the palette */
@@ -178,7 +174,7 @@ void TrashMachine(void)
   if (Screen) pspImageDestroy(Screen);
 
   /* Destroy keyboard */
-  pspKybdDestroyLayout(KeyLayout);
+  pl_vk_destroy(&KeyLayout);
 
   /* Destroy menu */
   TrashMenu();
@@ -206,11 +202,11 @@ void PutImage(void)
   if (LastScrMode!=ScrMode) ResetView();
 
   /* Draw the screen */
-  pspVideoPutImage(Screen, ScreenX, ScreenY, ScreenW, ScreenH);
+  pl_gfx_put_image(Screen, ScreenX, ScreenY, ScreenW, ScreenH);
 
   /* Draw keyboard */
   if (ShowKybdHeld)
-    pspKybdRender(KeyLayout);
+    pl_vk_render(&KeyLayout);
 
   /* Draw message (if any) */
   if (MessageTimer)
@@ -229,7 +225,7 @@ void PutImage(void)
   /* Display FPS */
   if (ShowFps)
   {
-    float fps = pspPerfGetFps(&FpsCounter);
+    float fps = pl_perf_update_counter(&FpsCounter);
 
     static char fps_display[16];
     sprintf(fps_display, " %3.02f ", fps);
@@ -321,14 +317,9 @@ void Keyboard(void)
     JoyState=0x00;
 
     if (ShowKybdHeld)
-      pspKybdNavigate(KeyLayout, &pad);
+      pl_vk_navigate(&KeyLayout, &pad);
 
     MouseState=pad.Lx|(pad.Ly<<8);
-#ifdef PSP_DEBUG
-    if ((pad.Buttons & (PSP_CTRL_SELECT | PSP_CTRL_START))
-      == (PSP_CTRL_SELECT | PSP_CTRL_START))
-        pspUtilSaveVramSeq(ScreenshotPath, "game");
-#endif
 
     /* Parse input */
     int on, code;
@@ -403,7 +394,7 @@ static void OpenMenu()
   ResetView();
 
   /* Reset FPS counter */
-  pspPerfInitFps(&FpsCounter);
+  pl_perf_init_counter(&FpsCounter);
 
   /* Recompute update frequency */
   TicksPerSecond = sceRtcGetTickResolution();
@@ -434,7 +425,7 @@ static void OpenMenu()
 /*************************************************************/
 static void SwitchVolume(char *drive, int vol_iter)
 {
-  if (drive && pspFileEndsWith(drive, "DSK"))
+  if (drive && pl_file_is_of_type(drive, "DSK"))
   {
     int pos = strlen(drive) - 5;
     char digit = drive[pos];
@@ -487,11 +478,11 @@ static void HandleSpecialInput(int code, int on)
 
     if (ShowKybdHeld != on)
     {
-      if (on) pspKybdReinit(KeyLayout);
+      if (on) pl_vk_reinit(&KeyLayout);
       else
       {
         ClearScreen = 1;
-        pspKybdReleaseAll(KeyLayout);
+        pl_vk_release_all(&KeyLayout);
       }
     }
 
@@ -540,8 +531,8 @@ void ResetView()
     Screen->Viewport.Width = (IS_WIDESCREEN && HiresEnabled) 
       ? HIRES_WIDTH : WIDTH;
     ratio = (float)SCR_HEIGHT / (float)Screen->Viewport.Height;
-//    ScreenW = (float)((Screen->Viewport.Width==512)?256:WIDTH) * ratio - 1;
-    ScreenW = (float)WIDTH * ratio - 1;
+//    ScreenW = (float)((Screen->Viewport.Width==512)?256:WIDTH) * ratio;
+    ScreenW = (float)WIDTH * ratio;
     ScreenH = SCR_HEIGHT;
     break;
   case DISPLAY_MODE_FILL_SCREEN:

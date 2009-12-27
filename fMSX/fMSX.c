@@ -17,11 +17,11 @@
 #include <pspkernel.h>
 
 #include "adhoc.h"
-#include "audio.h"
+#include "pl_snd.h"
 #include "video.h"
-#include "psp.h"
+#include "pl_psp.h"
 #include "ctrl.h"
-#include "file.h"
+#include "pl_file.h"
 
 #include "MSX.h"
 #include "MenuPsp.h"
@@ -37,7 +37,7 @@ PSP_MODULE_INFO(PSP_APP_NAME, 0, 1, 1);
 PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER);
 #endif
 
-static char app_path[PSP_FILE_MAX_PATH_LEN];
+static char app_path[PL_FILE_MAX_PATH_LEN];
 
 static void ExitCallback(void* arg)
 {
@@ -48,14 +48,14 @@ static void ExitCallback(void* arg)
 int user_main()
 {
   /* Initialize PSP */
-  pspInit(app_path);
-  pspAudioInit(SND_BUFSIZE, 0);
+  pl_psp_init(app_path);
+  pl_snd_init(SND_BUFSIZE, 0);
   pspCtrlInit();
   pspVideoInit();
 
   /* Initialize callbacks */
-  pspRegisterCallback(PSP_EXIT_CALLBACK, ExitCallback, NULL);
-  pspStartCallbackThread();
+  pl_psp_register_callback(PSP_EXIT_CALLBACK, ExitCallback, NULL);
+  pl_psp_start_callback_thread();
 
   int i;
 
@@ -83,9 +83,9 @@ int user_main()
   }
 
   /* Release PSP resources */
-  pspAudioShutdown();
+  pl_snd_shutdown();
   pspVideoShutdown();
-  pspShutdown();
+  pl_psp_shutdown();
 
   return(0);
 }
