@@ -3168,7 +3168,7 @@ int LoadCart(const char *FileName,int Slot,int Type)
 /*************************************************************/
 int SaveSTA(const char *FileName)
 {
-  static byte Header[16] = "STE\032\003\0\0\0\0\0\0\0\0\0\0\0";
+  static byte Header[16] = "STE\032\004\0\0\0\0\0\0\0\0\0\0\0";
   unsigned int State[256],J,I,K;
   FILE *F;
 
@@ -3181,6 +3181,12 @@ int SaveSTA(const char *FileName)
   Header[6] = VRAMPages;
   Header[7] = J&0x00FF;
   Header[8] = J>>8;
+
+  /* Version 4 code */
+  Header[9] = RAMPages>>8;
+  Header[10] = VRAMPages>>8;
+  Header[11] = (Mode&MSX_MODEL)&0xFF;
+  Header[12] = (Mode&MSX_VIDEO)&0xFF;
 
   /* Write out the header */
   if(fwrite(Header,1,sizeof(Header),F)!=sizeof(Header))
@@ -3270,8 +3276,28 @@ int LoadSTA(const char *FileName)
   { fclose(F);return(0); }
 
   /* Verify the header */
-  if(memcmp(Header,"STE\032\003",5))
+  if(memcmp(Header,"STE\032",4))
   { fclose(F);return(0); }
+
+  /* Check version and load accordingly */
+  if (Header[4] == 004)
+  {
+    /* Version 4 */
+    int RAMPages = (Header[9]<<8)|(Header[5]&0xFF);
+    int VRAMPages = (Header[10]<<8)|(Header[6]&0xFF);
+    int NewMode = ((Mode&~MSX_MODEL)|Header[11])
+                   |((Mode&~MSX_VIDEO)|Header[12]);
+
+    /* Attempt resetting the system with the new settings */
+    if (ResetMSX(NewMode,RAMPages,VRAMPages)!=NewMode)
+    { fclose(F);return(0); }
+  }
+  else
+  {
+    if (Header[4] != 003)
+    { fclose(F);return(0); }
+  }
+
   if(Header[7]+Header[8]*256!=StateID())
   { fclose(F);return(0); }
   if((Header[5]!=(RAMPages&0xFF))||(Header[6]!=(VRAMPages&0xFF)))
