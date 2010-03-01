@@ -70,6 +70,7 @@
 #define OPTION_SHOW_FPS      6
 #define OPTION_CONTROL_MODE  7
 #define OPTION_ANIMATE       8
+#define OPTION_TOGGLE_VK     9
 
 extern PspImage *Screen;
 
@@ -90,6 +91,7 @@ int ClockFreq;
 int Frameskip;
 int ShowFps;
 int HiresEnabled;
+int ToggleVK;
 
 static PspImage *Background;
 static PspImage *NoSaveIcon;
@@ -393,6 +395,10 @@ PL_MENU_OPTIONS_END
 PL_MENU_OPTIONS_BEGIN(CartNameOptions)
   PL_MENU_OPTION(EmptySlot, NULL)
 PL_MENU_OPTIONS_END
+PL_MENU_OPTIONS_BEGIN(VkModeOptions)
+  PL_MENU_OPTION("Display when button is held down (classic mode)", 0)
+  PL_MENU_OPTION("Toggle display on and off when button is pressed", 1)
+PL_MENU_OPTIONS_END
 
 static const char 
   ControlHelpText[] = "\026\250\020 Change mapping\t\026\001\020 Save to \271\t\026\244\020 Set as default\t\026\243\020 Load defaults",
@@ -406,6 +412,9 @@ PL_MENU_ITEMS_BEGIN(OptionMenuDef)
   PL_MENU_HEADER("Video")
   PL_MENU_ITEM("Screen size", OPTION_DISPLAY_MODE, ScreenSizeOptions, 
     "\026\250\020 Change screen size")
+  PL_MENU_HEADER("Input")
+  PL_MENU_ITEM("Virtual keyboard mode",OPTION_TOGGLE_VK,VkModeOptions,
+               "\026\250\020 Select virtual keyboard mode")
   PL_MENU_HEADER("Performance")
   PL_MENU_ITEM("Frame limiter", OPTION_FRAME_LIMITER, ToggleOptions,
     "\026\250\020 Enable/disable correct FPS emulation")
@@ -618,6 +627,15 @@ void InitMenu()
   ScreenshotPath = (char*)malloc(sizeof(char) * 1024);
   sprintf(ScreenshotPath, "ms0:/PSP/PHOTO/%s/", PSP_APP_NAME);
 
+  /* Create paths */
+  char ConfigPath[1024];
+  sprintf(ConfigPath, "%s%s", pl_psp_get_app_directory(), ConfigDir);
+
+  if (!pl_file_exists(ConfigPath))
+    pl_file_mkdir_recursive(ConfigPath);
+  if (!pl_file_exists(SaveStatePath))
+    pl_file_mkdir_recursive(SaveStatePath);
+
   /* Initialize system menu */
   pl_menu_create(&SystemUiMenu.Menu, SystemMenuDef);
 
@@ -748,8 +766,8 @@ void OnSplashRender(const void *splash, const void *null)
     PSP_APP_NAME" version "PSP_APP_VER" ("__DATE__")",
     "\026http://psp.akop.org/fmsx",
     " ",
-    "2007 Akop Karapetyan (port)",
-    "1994-2007 Marat Fayzullin (emulation)",
+    "2007-2010 Akop Karapetyan",
+    "1994-2007 Marat Fayzullin",
     NULL
   };
 
@@ -807,6 +825,9 @@ int OnMenuItemChanged(const struct PspUiMenu *uimenu, pl_menu_item* item,
       break;
     case OPTION_ANIMATE:
       UiMetric.Animate = (int)option->value;
+      break;
+    case OPTION_TOGGLE_VK:
+      ToggleVK = (int)option->value;
       break;
     }
   }
@@ -1184,6 +1205,7 @@ static void LoadOptions()
   ShowStatus = pl_ini_get_int(&init, "Video", "Show Status Indicators", 1);
   ControlMode = pl_ini_get_int(&init, "Menu", "Control Mode", 0);
   UiMetric.Animate = pl_ini_get_int(&init, "Menu", "Animate", 1);
+  ToggleVK = pl_ini_get_int(&init, "Input", "VK Mode", 0);
 
   Mode = (Mode&~MSX_VIDEO) 
     | pl_ini_get_int(&init, "System", "Timing", Mode & MSX_VIDEO);
@@ -1206,9 +1228,9 @@ static void LoadOptions()
   DiskPath = (char*)malloc(1024);
   CartPath = (char*)malloc(1024);
   Quickload = (char*)malloc(1024);
-  pl_ini_get_string(&init, "File", "Disk Path", NULL, DiskPath, 1024);
-  pl_ini_get_string(&init, "File", "Cart Path", NULL, CartPath, 1024);
-  pl_ini_get_string(&init, "File", "Game Path", NULL, Quickload, 1024);
+  pl_ini_get_string(&init, "File", "Disk Path", pl_psp_get_app_directory(), DiskPath, 1024);
+  pl_ini_get_string(&init, "File", "Cart Path", pl_psp_get_app_directory(), CartPath, 1024);
+  pl_ini_get_string(&init, "File", "Game Path", pl_psp_get_app_directory(), Quickload, 1024);
 
   /* Clean up */
   free(path);
@@ -1235,6 +1257,7 @@ static int SaveOptions()
   pl_ini_set_int(&init, "Video", "Show Status Indicators", ShowStatus);
   pl_ini_set_int(&init, "Menu", "Control Mode", ControlMode);
   pl_ini_set_int(&init, "Menu", "Animate", UiMetric.Animate);
+  pl_ini_set_int(&init, "Input",  "VK Mode", ToggleVK);
 
   pl_ini_set_int(&init, "System", "Timing", Mode & MSX_VIDEO);
   pl_ini_set_int(&init, "System", "Model", Mode & MSX_MODEL);
@@ -1348,6 +1371,8 @@ void DisplayMenu()
       pl_menu_select_option_by_value(item, (void*)ControlMode);
       item = pl_menu_find_item_by_id(&OptionUiMenu.Menu, OPTION_ANIMATE);
       pl_menu_select_option_by_value(item, (void*)UiMetric.Animate);
+      item = pl_menu_find_item_by_id(&OptionUiMenu.Menu, OPTION_TOGGLE_VK);
+      pl_menu_select_option_by_value(item, (void*)ToggleVK);
 
       pspUiOpenMenu(&OptionUiMenu, NULL);
       break;
@@ -1801,7 +1826,7 @@ int OnSaveStateOk(const void *gallery, const void *item)
       return 1;
     }
 
-    pspUiAlert("ERROR: State failed to load\nSee documentation for possible reasons");
+    pspUiAlert("Error loading saved game. Are the system ROMs still the same?");
   }
 
   free(path);

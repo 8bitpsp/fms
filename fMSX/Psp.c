@@ -44,6 +44,7 @@ extern int VSync;
 extern int ShowFps;
 extern int HiresEnabled;
 extern int ShowStatus;
+extern int ToggleVK;
 extern char *ScreenshotPath;
 
 /** Various variables ****************************************/
@@ -87,6 +88,7 @@ static int IconFlashed;
 static int PrevDiskHeld;
 static int NextDiskHeld;
 static int ShowKybdHeld;
+static int ShowKybd;
 
 static int MessageTimer;
 static char Message[250];
@@ -118,7 +120,7 @@ int InitMachine(void)
 
   /* Initialize keyboard */
   pl_vk_load(&KeyLayout, "system/msx.l2", 
-                         "system/msx.png", GetKeyStatus, HandleKeyboardInput);
+                         "system/msx_vk.png", GetKeyStatus, HandleKeyboardInput);
 
   /* Initialize menu */
   InitMenu();
@@ -128,6 +130,7 @@ int InitMachine(void)
   JoyState=0;
   MouseState=0;
   ShowKybdHeld=0;
+  ShowKybd=0;
   Frame=0;
   NextDiskHeld=0;
   PrevDiskHeld=0;
@@ -205,7 +208,7 @@ void PutImage(void)
   pl_gfx_put_image(Screen, ScreenX, ScreenY, ScreenW, ScreenH);
 
   /* Draw keyboard */
-  if (ShowKybdHeld)
+  if (ShowKybd)
     pl_vk_render(&KeyLayout);
 
   /* Draw message (if any) */
@@ -316,7 +319,7 @@ void Keyboard(void)
     /* Clear joystick state */
     JoyState=0x00;
 
-    if (ShowKybdHeld)
+    if (ShowKybd)
       pl_vk_navigate(&KeyLayout, &pad);
 
     MouseState=pad.Lx|(pad.Ly<<8);
@@ -332,12 +335,12 @@ void Keyboard(void)
       /* doesn't trigger any other combination presses. */
       if (on) pad.Buttons &= ~ButtonMask[i];
 
-      if (code & KBD && !ShowKybdHeld)
+      if (code & KBD && !ShowKybd)
       {
         /* Keybord state change */
         HandleKeyboardInput(CODE_MASK(code), on);
       }
-      else if (code & JST && !ShowKybdHeld)
+      else if (code & JST && !ShowKybd)
       {
         /* Joystick state change */
         if (on) JoyState|=CODE_MASK(code);
@@ -408,6 +411,7 @@ static void OpenMenu()
   FastForward = 0;
   Frame = 0;
   ShowKybdHeld = 0;
+  ShowKybd = 0;
   ClearScreen = 1;
   PrevDiskHeld = NextDiskHeld = 0;
   IconFlashed = 0;
@@ -476,13 +480,30 @@ static void HandleSpecialInput(int code, int on)
 
   case SPC_KYBD:
 
-    if (ShowKybdHeld != on)
+    if (ToggleVK)
     {
-      if (on) pl_vk_reinit(&KeyLayout);
-      else
+      if (ShowKybdHeld != on && on)
       {
-        ClearScreen = 1;
-        pl_vk_release_all(&KeyLayout);
+        ShowKybd = !ShowKybd;
+        memset((void *)KeyState,0xFF,16);
+
+        if (ShowKybd) 
+          pl_vk_reinit(&KeyLayout);
+        else ClearScreen = 1;
+      }
+    }
+    else
+    {
+      if (ShowKybdHeld != on)
+      {
+        ShowKybd = on;
+        if (on) 
+          pl_vk_reinit(&KeyLayout);
+        else
+        {
+          ClearScreen = 1;
+          memset((void *)KeyState,0xFF,16);
+        }
       }
     }
 

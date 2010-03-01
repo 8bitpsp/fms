@@ -3185,8 +3185,7 @@ int SaveSTA(const char *FileName)
   /* Version 4 code */
   Header[9] = RAMPages>>8;
   Header[10] = VRAMPages>>8;
-  Header[11] = (Mode&MSX_MODEL)&0xFF;
-  Header[12] = (Mode&MSX_VIDEO)&0xFF;
+  Header[11] = (Mode&(MSX_MODEL|MSX_VIDEO))&0xFF;
 
   /* Write out the header */
   if(fwrite(Header,1,sizeof(Header),F)!=sizeof(Header))
@@ -3283,14 +3282,17 @@ int LoadSTA(const char *FileName)
   if (Header[4] == 004)
   {
     /* Version 4 */
-    int RAMPages = (Header[9]<<8)|(Header[5]&0xFF);
-    int VRAMPages = (Header[10]<<8)|(Header[6]&0xFF);
-    int NewMode = ((Mode&~MSX_MODEL)|Header[11])
-                   |((Mode&~MSX_VIDEO)|Header[12]);
+    int NewRAMPages = (Header[9]<<8)|(Header[5]&0xFF);
+    int NewVRAMPages = (Header[10]<<8)|(Header[6]&0xFF);
+    int NewMode = (Mode&~(MSX_MODEL|MSX_VIDEO))|Header[11];
 
-    /* Attempt resetting the system with the new settings */
-    if (ResetMSX(NewMode,RAMPages,VRAMPages)!=NewMode)
-    { fclose(F);return(0); }
+    if (NewRAMPages != RAMPages ||
+        NewVRAMPages != VRAMPages ||
+        NewMode != Mode)
+    {
+      if (ResetMSX(NewMode,NewRAMPages,NewVRAMPages)!=NewMode)
+      { fclose(F);return(0); }
+    }
   }
   else
   {
@@ -3300,6 +3302,7 @@ int LoadSTA(const char *FileName)
 
   if(Header[7]+Header[8]*256!=StateID())
   { fclose(F);return(0); }
+
   if((Header[5]!=(RAMPages&0xFF))||(Header[6]!=(VRAMPages&0xFF)))
   { fclose(F);return(0); }
 
