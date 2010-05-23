@@ -190,6 +190,12 @@ unsigned int Joystick(void);
 /************************************ TO BE WRITTEN BY USER **/
 unsigned int Mouse(void);
 
+#ifdef PSP
+int GetSTABufferSize();
+int SaveSTAToBuffer(void *buffer);
+int LoadSTAFromBuffer(void *buffer);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

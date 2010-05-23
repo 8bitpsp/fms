@@ -883,3 +883,135 @@ word LoopZ80(Z80 *R)
   /* Generate interrupt if needed */
   return(R->IRequest);
 }
+
+#ifdef PSP
+int GetSTABufferSize()
+{
+  int size = 0;
+
+  size += sizeof(CPU);
+  size += sizeof(VDP);
+  size += sizeof(PSG);
+  size += 256 * sizeof(unsigned int);
+  size += 0xA000;
+  size += 0x4000;
+
+  return size;
+}
+
+int SaveSTAToBuffer(void *buffer)
+{
+  unsigned char *state = (unsigned char*)buffer;
+
+  memcpy(state, &CPU, sizeof(CPU));
+  state += sizeof(CPU);
+
+  memcpy(state, &VDP, sizeof(VDP));
+  state += sizeof(VDP);
+
+  memcpy(state, &PSG, sizeof(PSG));
+  state += sizeof(PSG);
+
+  unsigned int State[256],J=0;
+  memset(State,0,sizeof(State));
+  State[J++] = Mode;
+  State[J++] = UPeriod;
+  State[J++] = ROMPage[0]-RAM;
+  State[J++] = ROMPage[1]-RAM;
+  State[J++] = ROMPage[2]-RAM;
+  State[J++] = ROMPage[3]-RAM;
+  State[J++] = ROMPage[4]-RAM;
+  State[J++] = ROMPage[5]-RAM;
+  State[J++] = ROMPage[6]-RAM;
+  State[J++] = ROMPage[7]-RAM;
+  State[J++] = RAMPage[0]-RAM;
+  State[J++] = RAMPage[1]-RAM;
+  State[J++] = RAMPage[2]-RAM;
+  State[J++] = RAMPage[3]-RAM;
+  State[J++] = RAMPage[4]-RAM;
+  State[J++] = RAMPage[5]-RAM;
+  State[J++] = RAMPage[6]-RAM;
+  State[J++] = RAMPage[7]-RAM;
+  State[J++] = JoyMode;
+  State[J++] = Port20;
+  State[J++] = Port60;
+
+  memcpy(state, State, sizeof(State));
+  state += sizeof(State);
+
+  memcpy(state, RAM_BASE, 0xA000);
+  state += 0xA000;
+
+  memcpy(state, VDP.VRAM, 0x4000);
+  state += 0x4000;
+
+  return(1);
+}
+
+int LoadSTAFromBuffer(void *buffer)
+{
+  unsigned char *state = (unsigned char*)buffer;
+
+  memcpy(&CPU, state, sizeof(CPU));
+  state += sizeof(CPU);
+
+  /* Read VDP state, preserving VRAM address */
+  byte *VRAM = VDP.VRAM;
+  void *XBuf = VDP.XBuf;
+  int XPal[16];
+  memcpy(XPal,VDP.XPal,sizeof(XPal));
+
+  memcpy(&VDP,state,sizeof(VDP));
+  state += sizeof(VDP);
+
+  VDP.ChrTab += VRAM-VDP.VRAM;
+  VDP.ChrGen += VRAM-VDP.VRAM;
+  VDP.SprTab += VRAM-VDP.VRAM;
+  VDP.SprGen += VRAM-VDP.VRAM;
+  VDP.ColTab += VRAM-VDP.VRAM;
+  VDP.VRAM    = VRAM;
+  VDP.XBuf    = XBuf;
+  memcpy(VDP.XPal,XPal,sizeof(VDP.XPal));
+
+  memcpy(&PSG, state, sizeof(PSG));
+  state += sizeof(PSG);
+
+  unsigned int State[256],J;
+  memcpy(State,state,sizeof(State));
+  state += sizeof(State);
+
+  memcpy(RAM_BASE, state, 0xA000);
+  state += 0xA000;
+
+  memcpy(VDP.VRAM, state, 0x4000);
+  state += 0x4000;
+
+  /* Parse hardware state */
+  J=0;
+  Mode       = State[J++];
+  UPeriod    = State[J++];
+  ROMPage[0] = State[J++]+RAM;
+  ROMPage[1] = State[J++]+RAM;
+  ROMPage[2] = State[J++]+RAM;
+  ROMPage[3] = State[J++]+RAM;
+  ROMPage[4] = State[J++]+RAM;
+  ROMPage[5] = State[J++]+RAM;
+  ROMPage[6] = State[J++]+RAM;
+  ROMPage[7] = State[J++]+RAM;
+  RAMPage[0] = State[J++]+RAM;
+  RAMPage[1] = State[J++]+RAM;
+  RAMPage[2] = State[J++]+RAM;
+  RAMPage[3] = State[J++]+RAM;
+  RAMPage[4] = State[J++]+RAM;
+  RAMPage[5] = State[J++]+RAM;
+  RAMPage[6] = State[J++]+RAM;
+  RAMPage[7] = State[J++]+RAM;
+  JoyMode    = State[J++];
+  Port20     = State[J++];
+  Port60     = State[J++];
+
+  PSG.Changed = 0xFF;
+
+  return(1);
+}
+#endif

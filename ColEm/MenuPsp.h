@@ -25,6 +25,7 @@
 
 #define SPC_MENU               1
 #define SPC_KYBD               2
+#define SPC_REWIND             3
 
 #define MAP_BUTTONS            18
 

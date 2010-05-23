@@ -14,13 +14,14 @@
 #include "Coleco.h"
 #include "Sound.h"
 
-#include "MenuPsp.h"
-#include "util.h"
-
-#include "perf.h"
 #include "video.h"
 #include "ctrl.h"
-#include "kybd.h"
+#include "pl_vk.h"
+#include "pl_gfx.h"
+#include "pl_perf.h"
+#include "pl_rewind.h"
+
+#include "MenuPsp.h"
 
 #include <psprtc.h>
 
@@ -34,9 +35,12 @@ int SndSwitch;             /* Mask of enabled sound channels */
 int SndVolume;             /* Master volume for audio        */
 
 PspImage *Screen;                        /* Screen canvas */
+pl_rewind Rewinder;
 static pixel ColecoScreen[WIDTH*HEIGHT]; /* Actual display buffer  */
 
+extern int RewindSaveRate;
 extern int FrameLimiter;
+extern int SoundSuspended;
 extern int DisplayMode;
 extern int Frameskip;
 extern int VSync;
@@ -47,8 +51,8 @@ extern const int ButtonMapId[];
 extern struct GameConfig GameConfig;
 extern char *ScreenshotPath;
 
-static PspKeyboardLayout *KeyLayout;
-static PspFpsCounter FpsCounter;
+static pl_vk_layout KeyLayout;
+static pl_perf_counter FpsCounter;
 
 static int ScreenX;
 static int ScreenY;
@@ -64,6 +68,10 @@ static int Frame;
 static int ClearBufferCount;
 static int ShowKybdHeld;
 static int Keypad;
+static int FramesUntilSave;
+
+static int Rewinding;
+static u8 RewindEnabled;
 
 static void OpenMenu();
 static void ResetInput();
@@ -88,12 +96,11 @@ int InitMachine(void)
   ShowKybdHeld=0;
 
   /* Initialize keypad */
-  if (!(KeyLayout = pspKybdLoadLayout("coleco.lyt", 
-    NULL, HandlePadInput)))
-      return(0);
+  pl_vk_load(&KeyLayout, "system/coleco.l2", 
+                         "system/coleco.png", NULL, HandlePadInput);
   ResetInput();
 
-  pspPerfInitFps(&FpsCounter);
+  pl_perf_init_counter(&FpsCounter);
 
   /* Initialize menu */
   InitMenu();
@@ -114,6 +121,12 @@ int InitMachine(void)
     SndVolume=255/SN76489_CHANNELS;
     SetChannels(SndVolume,SndSwitch);
   }
+
+  /* Initialize rewinder */
+  pl_rewind_init(&Rewinder,
+    SaveSTAToBuffer,
+    LoadSTAFromBuffer,
+    GetSTABufferSize);
 
   return(1);
 }
@@ -161,7 +174,24 @@ static void OpenMenu()
   ScreenY = (SCR_HEIGHT / 2) - (ScreenH / 2);
 
   /* Reset FPS counter */
-  pspPerfInitFps(&FpsCounter);
+  pl_perf_init_counter(&FpsCounter);
+
+  /* Determine if at least 1 button is mapped to 'rewind' */
+  Rewinding = 0;
+  RewindEnabled = 0;
+
+  int i;
+  for (i = 0; ButtonMapId[i] >= 0; i++)
+  {
+    int code = GameConfig.ButtonMap[ButtonMapId[i]];
+    if ((code & SPC) && (CODE_MASK(code) == SPC_REWIND))
+    {
+      RewindEnabled = 1; /* Rewind button is mapped */
+      break;
+    }
+  }
+
+  FramesUntilSave = 0;
 
   /* Recompute update frequency */
   TicksPerSecond = sceRtcGetTickResolution();
@@ -202,7 +232,9 @@ void TrashMachine(void)
   TrashSound();
  
   /* Destroy keyboard */
-  pspKybdDestroyLayout(KeyLayout);
+  pl_vk_destroy(&KeyLayout);
+
+  pl_rewind_destroy(&Rewinder);
 
   /* Destroy menu */
   TrashMenu();
@@ -243,16 +275,16 @@ void RefreshScreen(void *Buffer,int Width,int Height)
 
   /* Draw the screen */
   CopyScreen();
-  pspVideoPutImage(Screen, ScreenX, ScreenY, ScreenW, ScreenH);
+  pl_gfx_put_image(Screen, ScreenX, ScreenY, ScreenW, ScreenH);
 
   /* Draw keyboard */
   if (ShowKybdHeld)
-    pspKybdRender(KeyLayout);
+    pl_vk_render(&KeyLayout);
 
   /* Display FPS */
   if (ShowFps)
   {
-    float fps = pspPerfGetFps(&FpsCounter);
+    float fps = pl_perf_update_counter(&FpsCounter);
 
     static char fps_display[16];
     sprintf(fps_display, " %3.02f ", fps);
@@ -325,7 +357,7 @@ unsigned int Joystick(void)
 
   if (pspCtrlPollControls(&pad))
   {
-    if (ShowKybdHeld) pspKybdNavigate(KeyLayout, &pad);
+    if (ShowKybdHeld) pl_vk_navigate(&KeyLayout, &pad);
 
 #ifdef PSP_DEBUG
     if ((pad.Buttons & (PSP_CTRL_SELECT | PSP_CTRL_START))
@@ -344,16 +376,35 @@ unsigned int Joystick(void)
       /* doesn't trigger any other combination presses. */
       if (on) pad.Buttons &= ~ButtonMask[i];
 
-      if (code & JST && !ShowKybdHeld)
+      if (!Rewinding)
       {
-        /* Joystick state change */
-        if (on) Joy|=CODE_MASK(code);
+        if (code & JST && !ShowKybdHeld)
+        {
+          /* Joystick state change */
+          if (on) Joy|=CODE_MASK(code);
+        }
       }
-      else if (code & SPC)
+
+      if (code & SPC)
       {
         /* Emulator-specific input */
         HandleSpecialInput(CODE_MASK(code), on);
       }
+    }
+
+    /* Rewind/save state */
+    if (!Rewinding)
+    {
+      if (--FramesUntilSave <= 0)
+      {
+        FramesUntilSave = RewindSaveRate;
+        pl_rewind_save(&Rewinder);
+      }
+    }
+    else
+    {
+      FramesUntilSave = RewindSaveRate;
+      pl_rewind_restore(&Rewinder);
     }
   }
 
@@ -378,17 +429,20 @@ static void HandleSpecialInput(int code, int on)
 
     if (ShowKybdHeld != on)
     {
-      if (on) pspKybdReinit(KeyLayout);
+      if (on) pl_vk_reinit(&KeyLayout);
       else
       {
         ClearBufferCount = 2;
-        pspKybdReleaseAll(KeyLayout);
+        pl_vk_release_all(&KeyLayout);
       }
     }
 
     ShowKybdHeld = on;
     break;
-
+  case SPC_REWIND:
+    Rewinding = on;
+    SoundSuspended = on;
+    break;
   case SPC_MENU:
     if (on) OpenMenu();
     break;

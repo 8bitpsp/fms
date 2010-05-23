@@ -17,10 +17,11 @@
 
 #include <pspkernel.h>
 
-#include "audio.h"
+#include "pl_snd.h"
 #include "video.h"
-#include "psp.h"
+#include "pl_psp.h"
 #include "ctrl.h"
+#include "pl_file.h"
 
 #include "Coleco.h"
 #include "Sound.h"
@@ -49,8 +50,8 @@ int main(int argc,char *argv[])
 #endif
 
   /* Initialize PSP */
-  pspInit(argv[0]);
-  pspAudioInit(SND_BUFSIZE, 0);
+  pl_psp_init(argv[0]);
+  pl_snd_init(SND_BUFSIZE, 0);
   pspCtrlInit();
   pspVideoInit();
 
@@ -59,8 +60,8 @@ int main(int argc,char *argv[])
   if(P) { *P='\0';HomeDir=argv[0]; }
 
   /* Initialize callbacks */
-  pspRegisterCallback(PSP_EXIT_CALLBACK, ExitCallback, NULL);
-  pspStartCallbackThread();
+  pl_psp_register_callback(PSP_EXIT_CALLBACK, ExitCallback, NULL);
+  pl_psp_start_callback_thread();
 
   /* ColEm settings */
   Verbose=0;
@@ -74,9 +75,9 @@ int main(int argc,char *argv[])
   }
 
   /* Release PSP resources */
-  pspAudioShutdown();
+  pl_snd_shutdown();
   pspVideoShutdown();
-  pspShutdown();
+  pl_psp_shutdown();
 
   return(0);
 }

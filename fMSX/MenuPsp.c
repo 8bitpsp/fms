@@ -673,8 +673,6 @@ void InitMenu()
   UiMetric.Top = 24;
   UiMetric.Right = 472;
   UiMetric.Bottom = 240;
-  UiMetric.OkButton = (!ControlMode) ? PSP_CTRL_CROSS : PSP_CTRL_CIRCLE;
-  UiMetric.CancelButton = (!ControlMode) ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
   UiMetric.ScrollbarColor = PSP_COLOR_GRAY;
   UiMetric.ScrollbarBgColor = 0x44ffffff;
   UiMetric.ScrollbarWidth = 10;
@@ -707,7 +705,10 @@ void InitMenu()
   /* Initialize options */
   LoadOptions();
   LoadRomTypeMappings();
-
+  
+  UiMetric.OkButton = (!ControlMode) ? PSP_CTRL_CROSS : PSP_CTRL_CIRCLE;
+  UiMetric.CancelButton = (!ControlMode) ? PSP_CTRL_CIRCLE : PSP_CTRL_CROSS;
+  
   /* If this is going to take a while... */
   if (Use2413 || Use8950) 
     pspUiFlashMessage("Initializing sound emulation, please wait...");
@@ -2115,6 +2116,11 @@ void TrashMenu()
   for (i=0; i<MAXCARTS; i++) if (ROM[i]) free(ROM[i]);
   for (i=0; i<MAXDRIVES; i++) if (Drive[i]) free(Drive[i]);
   if (Quickload) free(Quickload);
+
+  pl_menu_destroy(&SystemUiMenu.Menu);
+  pl_menu_destroy(&OptionUiMenu.Menu);
+  pl_menu_destroy(&ControlUiMenu.Menu);
+  pl_menu_destroy(&SaveStateGallery.Menu);
 
   /* Trash images */
   if (Background) pspImageDestroy(Background);

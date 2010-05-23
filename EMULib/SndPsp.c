@@ -49,6 +49,7 @@ static int MixBuffer[SND_BUFSIZE];
 static int WPtr = 0;
 #endif
 
+int SoundSuspended = 0;
 static int SndRate     = 0;  /* Audio sampling rate          */
 
 /** StopSound() **********************************************/
@@ -69,6 +70,7 @@ unsigned int InitAudio(unsigned int Rate,unsigned int Latency)
 {
   TrashAudio();
 
+  SoundSuspended = 0;
   pl_snd_set_callback(0, AudioCallback, 0);
 
   /* Only 44100 supported */
@@ -156,7 +158,10 @@ void TrashAudio(void)
 /*************************************************************/
 static void AudioCallback(pl_snd_sample *buf, unsigned int samples, void *userdata)
 {
-  MixAudio((short*)buf, samples);
+  if (SoundSuspended)
+    memset(buf, 0, samples << 1);
+  else
+    MixAudio((short*)buf, samples);
 }
 
 /** AudioCallback() ******************************************/
