@@ -7,7 +7,7 @@
 /** LoopZ80(), and PatchZ80() functions to accomodate the   **/
 /** emulated machine's architecture.                        **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1994-2008                 **/
+/** Copyright (C) Marat Fayzullin 1994-2010                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/   
 /**     changes to this file.                               **/
@@ -56,6 +56,14 @@ INLINE byte RdZ80(word A) { return(Page[A>>13][A&0x1FFF]); }
 #define FAST_RDOP
 extern byte *RAM[];
 INLINE byte OpZ80(word A) { return(RAM[A>>13][A&0x1FFF]); }
+#endif
+
+#ifdef ATI85
+#define RdZ80 RDZ80
+#define WrZ80 WRZ80
+extern byte *Page[],*ROM;
+INLINE byte RdZ80(word A) { return(Page[A>>14][A&0x3FFF]); }
+INLINE void WrZ80(word A,byte V) { if(Page[A>>14]<ROM) Page[A>>14][A&0x3FFF]=V; }
 #endif
 
 /** FAST_RDOP ************************************************/

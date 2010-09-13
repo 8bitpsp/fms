@@ -6,7 +6,7 @@
 /** produced by Texas Instruments. See files TMS9918.c and  **/
 /** DRV9918.c for implementation.                           **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2008                 **/
+/** Copyright (C) Marat Fayzullin 1996-2010                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -80,8 +80,10 @@ typedef struct { unsigned char R,G,B; } RGB;
 typedef unsigned int pixel;
 #elif defined(BPP16)
 typedef unsigned short pixel;
-#else
+#elif defined(BPP8)
 typedef unsigned char pixel;
+#else
+typedef unsigned int pixel;
 #endif
 #endif
 
@@ -114,6 +116,12 @@ typedef struct
   byte  *SprTab;     /* Sprite Attribute Table  */
   byte  *SprGen;     /* Sprite Pattern Table    */
   byte  *ColTab;     /* Color Table             */
+
+  /* Table Address Masks */
+  int   ChrTabM;     /* ChrTab[] address mask   */
+  int   ColTabM;     /* ColTab[] address mask   */
+  int   ChrGenM;     /* ChrGen[] address mask   */
+  int   SprTabM;     /* SprTab[] address mask   */
 
   /* Picture Rendering */
   void  *XBuf;       /* Buffer where picture is formed     */

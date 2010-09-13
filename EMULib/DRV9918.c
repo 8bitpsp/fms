@@ -7,7 +7,7 @@
 /** TMS9918.h for declarations and TMS9918.c for the main   **/
 /** code.                                                   **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2008                 **/
+/** Copyright (C) Marat Fayzullin 1996-2010                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -281,10 +281,9 @@ void RefreshLine1(register TMS9918 *VDP,register byte Y)
 /*************************************************************/
 void RefreshLine2(register TMS9918 *VDP,register byte Y)
 {
-  register byte X,K,Offset;
-  register byte *T,*PGT,*CLT;
   register pixel *P,FC,BC;
-  register int J;
+  register byte X,K,*T,*PGT,*CLT;
+  register int J,I,PGTMask,CLTMask;
 
   P  = (pixel *)(VDP->XBuf)
      + VDP->Width*(Y+(VDP->Height-192)/2)
@@ -297,19 +296,20 @@ void RefreshLine2(register TMS9918 *VDP,register byte Y)
   }
   else
   {
-    J      = (int)(Y&0xC0)<<5;
-    PGT    = VDP->ChrGen+J;
-    CLT    = VDP->ColTab+J;
+    J       = ((int)(Y&0xC0)<<5)+(Y&0x07);
+    PGT     = VDP->ChrGen;
+    CLT     = VDP->ColTab;
+    PGTMask = VDP->ChrGenM;
+    CLTMask = VDP->ColTabM;
     T      = VDP->ChrTab+((int)(Y&0xF8)<<2);
-    Offset = Y&0x07;
 
     for(X=0;X<32;X++)
     {
-      J    = ((int)*T<<3)+Offset;
-      K    = CLT[J];
+      I    = (int)*T<<3;
+      K    = CLT[(J+I)&CLTMask];
       FC   = VDP->XPal[K>>4];
       BC   = VDP->XPal[K&0x0F];
-      K    = PGT[J];
+      K    = PGT[(J+I)&PGTMask];
       P[0] = K&0x80? FC:BC;
       P[1] = K&0x40? FC:BC;
       P[2] = K&0x20? FC:BC;

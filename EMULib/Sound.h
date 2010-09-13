@@ -6,7 +6,7 @@
 /** functions needed to log soundtrack into a MIDI file.    **/
 /** See Sound.c and the sound drivers for the code.         **/ 
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2008                 **/
+/** Copyright (C) Marat Fayzullin 1996-2010                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -141,7 +141,7 @@ int MIDILogging(int Switch);
 /*************************************************************/
 void MIDITicks(int N);
 
-#if !defined(MSDOS) & !defined(UNIX) & !defined(WINDOWS) & !defined(S60) & !defined(UIQ)
+#if !defined(MSDOS) & !defined(UNIX) & !defined(MAEMO) & !defined(WINDOWS) & !defined(S60) & !defined(UIQ)
 #define SND_CHANNELS MIDI_CHANNELS         /* Default number */
 #endif
 

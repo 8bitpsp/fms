@@ -6,7 +6,7 @@
 /** and functions needed to log soundtrack into a MIDI      **/
 /** file. See Sound.h for declarations.                     **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2008                 **/
+/** Copyright (C) Marat Fayzullin 1996-2010                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef UNIX
+#if defined(UNIX) || defined(MAEMO) || defined(STMP3700) || defined(NXC2600)
 #include <unistd.h>
 #endif
 
@@ -85,13 +85,31 @@ static struct
   int Pos;                        /* Wave current position in Data    */  
 
   int Count;                      /* Phase counter                    */
-} WaveCH[SND_CHANNELS];
+} WaveCH[SND_CHANNELS] =
+{
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 },
+  { SND_MELODIC,0,0,0,0,0,0,0 }
+};
 
 /** RenderAudio() Variables *******************************************/
-static int SndRate      = 0;      /* Sound rate (1=Adlib, 0=Off)      */
-static int NoiseGen     = 1;      /* Noise generator seed             */
-int MasterSwitch = 0xFFFF;        /* Switches to turn channels on/off */
-int MasterVolume = 192;           /* Master volume                    */
+static int SndRate    = 0;        /* Sound rate (0=Off)               */
+static int NoiseGen   = 1;        /* Noise generator seed             */
+int MasterSwitch      = 0xFFFF;   /* Switches to turn channels on/off */
+int MasterVolume      = 192;      /* Master volume                    */
 
 /** MIDI Logging Variables ********************************************/
 static const char *LogName = 0;   /* MIDI logging file name           */
@@ -208,7 +226,7 @@ void SetWave(int Channel,const signed char *Data,int Length,int Rate)
   WaveCH[Channel].Type   = SND_WAVE;
   WaveCH[Channel].Length = Length;
   WaveCH[Channel].Rate   = Rate;
-  WaveCH[Channel].Pos    = 0;
+  WaveCH[Channel].Pos    = Length? WaveCH[Channel].Pos%Length:0;
   WaveCH[Channel].Count  = 0;
   WaveCH[Channel].Data   = Data;
 
@@ -565,16 +583,14 @@ unsigned int InitSound(unsigned int Rate,unsigned int Latency)
   /* Shut down current sound */
   TrashSound();
 
-  /* Initialize internal variables */
-  SndRate      = 0;
-  MasterVolume = 0;
-  MasterSwitch = 0;
-  NoiseGen     = 1;
+  /* Initialize internal variables (keeping MasterVolume/MasterSwitch!) */
+  SndRate  = 0;
+  NoiseGen = 1;
 
   /* Reset sound parameters */
   for(I=0;I<SND_CHANNELS;I++)
   {
-    WaveCH[I].Type   = SND_MELODIC;
+    /* NOTICE: Preserving Type value! */
     WaveCH[I].Count  = 0;
     WaveCH[I].Volume = 0;
     WaveCH[I].Freq   = 0;
@@ -591,7 +607,7 @@ unsigned int InitSound(unsigned int Rate,unsigned int Latency)
   if(!Rate) { SndRate=0;return(0); }
 
   /* Done */
-  SetChannels(192,(1<<SND_CHANNELS)-1);
+  SetChannels(MasterVolume,MasterSwitch);
   return(SndRate=Rate);
 }
 
@@ -603,13 +619,16 @@ void TrashSound(void)
   /* Sound is now off */
   SndRate = 0;
   /* Shut down platform-dependent audio */
+#if !defined(NO_AUDIO_PLAYBACK)
 #if defined(WINDOWS)
   WinTrashSound();
 #else
   TrashAudio();
 #endif
+#endif
 }
 
+#if !defined(NO_AUDIO_PLAYBACK)
 /** RenderAudio() ********************************************/
 /** Render given number of melodic sound samples into an    **/
 /** integer buffer for mixing.                              **/
@@ -633,8 +652,9 @@ void RenderAudio(int *Wave,unsigned int Samples)
           /* Waveform data must have correct length! */
           if(WaveCH[J].Length<=0) break;
           /* Start counting */
-          K  = WaveCH[J].Rate>0? (SndRate<<15)/WaveCH[J].Freq/WaveCH[J].Rate
-                           : (SndRate<<15)/WaveCH[J].Freq/WaveCH[J].Length;
+          K  = WaveCH[J].Rate>0?
+               (SndRate<<15)/WaveCH[J].Freq/WaveCH[J].Rate
+             : (SndRate<<15)/WaveCH[J].Freq/WaveCH[J].Length;
           L1 = WaveCH[J].Pos%WaveCH[J].Length;
           L2 = WaveCH[J].Count;
           A1 = WaveCH[J].Data[L1]*V;
@@ -738,8 +758,12 @@ unsigned int PlayAudio(int *Wave,unsigned int Samples)
     {
       D      = ((*Wave++)*MasterVolume)/255;
       D      = D>32767? 32767:D<-32768? -32768:D;
-#ifdef BPS16
+#if defined(BPU16)
+      Buf[I] = D+32768;
+#elif defined(BPS16)
       Buf[I] = D;
+#elif defined(BPU8)
+      Buf[I] = (D>>8)+128;
 #else
       Buf[I] = D>>8;
 #endif
@@ -765,16 +789,20 @@ unsigned int RenderAndPlayAudio(unsigned int Samples)
   /* Exit if wave sound not initialized */
   if(SndRate<8192) return(0);
 
+  J       = GetFreeAudio();
+  Samples = Samples<J? Samples:J;
+ 
   /* Render and play sound */
-  for(I=0;(I<Samples)&&(J=GetFreeAudio());I+=J)
+  for(I=0;I<Samples;I+=J)
   {
-    J = J<Samples? J:Samples;
+    J = Samples-I;
     J = J<sizeof(Buf)/sizeof(Buf[0])? J:sizeof(Buf)/sizeof(Buf[0]);
     memset(Buf,0,J*sizeof(Buf[0]));
     RenderAudio(Buf,J);
-    J = PlayAudio(Buf,J);
+    if(PlayAudio(Buf,J)<J) { I+=J;break; }
   }
 
   /* Return number of samples rendered */
   return(I);
 }
+#endif /* !NO_AUDIO_PLAYBACK */

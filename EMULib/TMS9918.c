@@ -6,7 +6,7 @@
 /** produced by Texas Instruments. See TMS9918.h for        **/
 /** declarations.                                           **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1996-2008                 **/
+/** Copyright (C) Marat Fayzullin 1996-2010                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -45,13 +45,13 @@ RGB Palette9918[16*3] =
 struct
 {
   void (*LineHandler)(TMS9918 *VDP,byte Y);
-  byte R2,R3,R4,R5,R6;
+  byte R2,R3,R4,R5,R6,M2,M3,M4,M5;
 } Screen9918[4] =
 {
-  { RefreshLine0,0x7F,0x00,0x3F,0x00,0x3F },/* SCREEN 0:TEXT 40x24    */
-  { RefreshLine1,0x7F,0xFF,0x3F,0xFF,0x3F },/* SCREEN 1:TEXT 32x24    */
-  { RefreshLine2,0x7F,0x80,0x3C,0xFF,0x3F },/* SCREEN 2:BLOCK 256x192 */
-  { RefreshLine3,0x7F,0x00,0x3F,0xFF,0x3F },/* SCREEN 3:GFX 64x48x16  */
+  { RefreshLine0,0x7F,0x00,0x3F,0x00,0x3F,0x00,0x00,0x00,0x00 },/* SCREEN 0:TEXT 40x24    */
+  { RefreshLine1,0x7F,0xFF,0x3F,0xFF,0x3F,0x00,0x00,0x00,0x00 },/* SCREEN 1:TEXT 32x24    */
+  { RefreshLine2,0x7F,0x80,0x3C,0xFF,0x3F,0x00,0x7F,0x03,0x00 },/* SCREEN 2:BLOCK 256x192 */
+  { RefreshLine3,0x7F,0x00,0x3F,0xFF,0x3F,0x00,0x00,0x00,0x00 },/* SCREEN 3:GFX 64x48x16  */
 };
 
 /** Static Functions *****************************************/
@@ -109,7 +109,8 @@ void Reset9918(TMS9918 *VDP,byte *Buffer,int Width,int Height)
     VDP->OwnXBuf = 0;
   }
 
-  memset(VDP->R,0,sizeof(VDP->R));
+  memset(VDP->VRAM,0x00,0x4000);
+  memset(VDP->R,0x00,sizeof(VDP->R));
 
   VDP->UCount = 0;
   VDP->VAddr  = 0x0000;
@@ -117,13 +118,22 @@ void Reset9918(TMS9918 *VDP,byte *Buffer,int Width,int Height)
   VDP->VKey   = 1;
   VDP->WKey   = 1;
   VDP->Mode   = 0;
-  VDP->Line   = VDP->Scanlines;
+  VDP->Line    = 0;
+  VDP->CLatch  = 0;
+  VDP->DLatch  = 0;
+  VDP->FGColor = 0;
+  VDP->BGColor = 0;
 
   VDP->ChrTab = VDP->VRAM;
   VDP->ChrGen = VDP->VRAM;
   VDP->ColTab = VDP->VRAM;
   VDP->SprTab = VDP->VRAM;
   VDP->SprGen = VDP->VRAM;
+
+  VDP->ChrTabM = ~0;
+  VDP->ColTabM = ~0;
+  VDP->ChrGenM = ~0;
+  VDP->SprTabM = ~0;
 }
 
 /** Trash9918() **********************************************/
@@ -189,21 +199,29 @@ byte Write9918(TMS9918 *VDP,byte R,byte V)
         VDP->ChrGen = VDP->VRAM+(((int)(VDP->R[4]&Screen9918[V].R4)<<11)&VRAMMask);
         VDP->SprTab = VDP->VRAM+(((int)(VDP->R[5]&Screen9918[V].R5)<<7)&VRAMMask);
         VDP->SprGen = VDP->VRAM+(((int)(VDP->R[6]&Screen9918[V].R6)<<11)&VRAMMask);
+        VDP->ChrTabM = ((int)(VDP->R[2]|~Screen9918[V].M2)<<10)|0x03FF;
+        VDP->ColTabM = ((int)(VDP->R[3]|~Screen9918[V].M3)<<6)|0x1C03F;
+        VDP->ChrGenM = ((int)(VDP->R[4]|~Screen9918[V].M4)<<11)|0x007FF;
+        VDP->SprTabM = ((int)(VDP->R[5]|~Screen9918[V].M5)<<7)|0x1807F;
         VDP->Mode   = V;
       }
       break;
 
     case 2: /* Name Table */
       VDP->ChrTab=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R2)<<10)&VRAMMask);
+      VDP->ChrTabM = ((int)(V|~Screen9918[VDP->Mode].M2)<<10)|0x03FF;
       break;
     case 3: /* Color Table */
       VDP->ColTab=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R3)<<6)&VRAMMask);
+      VDP->ColTabM = ((int)(V|~Screen9918[VDP->Mode].M3)<<6)|0x1C03F;
       break;
     case 4: /* Pattern Table */
       VDP->ChrGen=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R4)<<11)&VRAMMask);
+      VDP->ChrGenM = ((int)(V|~Screen9918[VDP->Mode].M4)<<11)|0x007FF;
       break;
     case 5: /* Sprite Attributes */
       VDP->SprTab=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R5)<<7)&VRAMMask);
+      VDP->SprTabM = ((int)(V|~Screen9918[VDP->Mode].M5)<<7)|0x1807F;
       break;
     case 6: /* Sprite Patterns */
       VDP->SprGen=VDP->VRAM+(((int)(V&Screen9918[VDP->Mode].R6)<<11)&VRAMMask);

@@ -5,7 +5,7 @@
 /** This file contains implementation for the Coleco        **/
 /** specific hardware. Initialization code is also here.    **/
 /**                                                         **/
-/** Copyright (C) Marat Fayzullin 1994-2007                 **/
+/** Copyright (C) Marat Fayzullin 1994-2010                 **/
 /**     You are not allowed to distribute this software     **/
 /**     commercially. Please, notify me, if you make any    **/
 /**     changes to this file.                               **/
@@ -318,9 +318,12 @@ int LoadROM(const char *Cartridge)
   /* If ROM not recognized, drop out */
   if(!P) { fclose(F);return(0); }
 
-  /* Read the rest of the ROM */
+  /* Clear ROM buffer and store the first two bytes */
+  memset(P,NORAM,0x8000);
   P[0]=Buf[0];
   P[1]=Buf[1];
+
+  /* Read the rest of the ROM */
 #ifdef MINIZIP
   if(ZF) J=2+unzReadCurrentFile(ZF,P+2,0x7FFE);
   else
@@ -361,7 +364,7 @@ int LoadROM(const char *Cartridge)
 /*************************************************************/
 int SaveSTA(const char *StateFile)
 {
-  static byte Header[16] = "STF\032\001\0\0\0\0\0\0\0\0\0\0\0";
+  static byte Header[16] = "STF\032\002\0\0\0\0\0\0\0\0\0\0\0";
   unsigned int State[256],J;
   FILE *F;
 
@@ -449,7 +452,7 @@ int LoadSTA(const char *StateFile)
   /* Read and check the header */
   if(fread(Header,1,16,F)!=16)
   { fclose(F);return(0); }
-  if(memcmp(Header,"STF\032\001",5))
+  if(memcmp(Header,"STF\032\002",5))
   { fclose(F);return(0); }
   J=CartCRC();
   if(
@@ -646,28 +649,29 @@ int ResetColeco(int NewMode)
 
   /* Clear memory (important for NetPlay, to  */
   /* keep states at both sides consistent)    */
-  memset(RAM_MAIN_LO,NORAM,0x8000);
-  memset(RAM_MAIN_HI,NORAM,0x8000);
-  memset(RAM_EXP_LO,NORAM,0x8000);
-  memset(RAM_EXP_HI,NORAM,0x8000);
-  memset(RAM_OS7,NORAM,0x2000);
+  /* Clearing to zeros (Heist) */
+  memset(RAM_MAIN_LO,0x00,0x8000);
+  memset(RAM_MAIN_HI,0x00,0x8000);
+  memset(RAM_EXP_LO,0x00,0x8000);
+  memset(RAM_EXP_HI,0x00,0x8000);
+  memset(RAM_OS7,0x00,0x2000);
 
   /* Set up memory pages */
   SetMemory(Mode&CV_ADAM? 0x00:0x0F,0x00);
 
+  /* Set scanline parameters according to video type */
+  /* (this has to be done before CPU and VDP are reset) */
+  VDP.MaxSprites = Mode&CV_ALLSPRITE? 255:TMS9918_MAXSPRITES; 
+  VDP.Scanlines  = Mode&CV_PAL? TMS9929_LINES:TMS9918_LINES;
+  CPU.IPeriod    = Mode&CV_PAL? TMS9929_LINE:TMS9918_LINE;
+
   /* Reset TMS9918 VDP */
   Reset9918(&VDP,ScrBuffer,ScrWidth,ScrHeight);
-  /* Set sprite limit */
-  VDP.MaxSprites = Mode&CV_ALLSPRITE? 255:TMS9918_MAXSPRITES; 
   /* Reset SN76489 PSG */
   Reset76489(&PSG,0);
   Sync76489(&PSG,SN76489_SYNC);
   /* Reset Z80 CPU */
   ResetZ80(&CPU);
-
-  /* Set scanline parameters according to video type */
-  VDP.Scanlines = Mode&CV_PAL? TMS9929_LINES:TMS9918_LINES;
-  CPU.IPeriod   = Mode&CV_PAL? TMS9929_LINE:TMS9918_LINE;
 
   /* Set up the palette */
   I = Mode&CV_PALETTE;
